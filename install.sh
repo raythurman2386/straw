@@ -47,13 +47,19 @@ echo "Detected: $OS $ARCH"
 # Get latest release version
 if [ -z "$VERSION" ]; then
     echo "Fetching latest release..."
-    # Try stable release first, then fall back to pre-releases
-    VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    # Try stable release first
+    VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    # Fall back to pre-releases (beta, rc, etc.)
     if [ -z "$VERSION" ]; then
-        VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases" | grep '"tag_name":' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+        VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases" 2>/dev/null | grep '"tag_name":' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    fi
+    # Last resort: scrape the latest tag via git ls-remote
+    if [ -z "$VERSION" ]; then
+        VERSION=$(git ls-remote --tags --sort=-v:refname "https://github.com/$REPO.git" 'v*' 2>/dev/null | head -1 | sed 's/.*refs\/tags\///')
     fi
     if [ -z "$VERSION" ]; then
-        echo "Error: Could not determine latest version"
+        echo "Error: Could not determine latest version."
+        echo "You can set VERSION manually: VERSION=v0.1.0-beta sh install.sh"
         exit 1
     fi
 fi

@@ -22,9 +22,6 @@ case "$ARCH" in
     armv7l)
         ARCH="armv7"
         ;;
-    armv6l)
-        ARCH="armv6"
-        ;;
     i386|i686)
         ARCH="386"
         ;;

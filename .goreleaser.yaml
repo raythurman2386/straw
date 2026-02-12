@@ -27,7 +27,6 @@ builds:
       - arm
     goarm:
       - "7"
-      - "6"
     ignore:
       - goos: darwin
         goarch: "386"
@@ -51,7 +50,6 @@ builds:
       - arm
     goarm:
       - "7"
-      - "6"
     ignore:
       - goos: darwin
         goarch: "386"

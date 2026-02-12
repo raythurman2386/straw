@@ -47,7 +47,11 @@ echo "Detected: $OS $ARCH"
 # Get latest release version
 if [ -z "$VERSION" ]; then
     echo "Fetching latest release..."
+    # Try stable release first, then fall back to pre-releases
     VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$VERSION" ]; then
+        VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases" | grep '"tag_name":' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    fi
     if [ -z "$VERSION" ]; then
         echo "Error: Could not determine latest version"
         exit 1

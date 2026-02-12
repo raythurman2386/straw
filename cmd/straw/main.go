@@ -23,6 +23,12 @@ import (
 	"golang.org/x/text/language"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 type tab int
 
 const (
@@ -445,8 +451,9 @@ func main() {
 	var verbose bool
 
 	rootCmd := &cobra.Command{
-		Use:   "straw",
-		Short: "Straw TUI client",
+		Use:     "straw",
+		Short:   "Straw TUI client",
+		Version: version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			level := slog.LevelInfo
 			if verbose {
@@ -502,6 +509,10 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&socketPath, "socket", "", "Override socket path")
 	rootCmd.PersistentFlags().StringVar(&logFilePath, "log-file", "", "Path to log file")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+
+	// Override Cobra's default version flag to avoid conflict with -v (verbose)
+	rootCmd.Flags().Bool("version", false, "Print the version")
+	rootCmd.SetVersionTemplate(fmt.Sprintf("straw version {{.Version}} (commit: %s, built: %s)\n", commit, date))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

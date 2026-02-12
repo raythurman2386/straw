@@ -1,0 +1,18 @@
+# Straw Configuration
+# See https://github.com/raythurman2386/straw for documentation
+
+[tui]
+theme = "default"
+
+[[watch]]
+path = "~/Downloads"
+recursive = true
+
+[[rules]]
+name = "Organize PDFs"
+enabled = true
+[rules.match]
+extension = ".pdf"
+[[rules.actions]]
+type = "move"
+target = "~/Documents/PDFs"

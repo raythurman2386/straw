@@ -24,29 +24,49 @@ Straw is a modern, terminal-based file automation system built with Go. It featu
 
 ## 🛠 Installation
 
-### Unified Script (Recommended)
+### Quick Install (Recommended)
 
-Clone the repository and run the installation script:
+One-liner to download and install the latest release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/raythurman2386/straw/main/install.sh | sh
+```
+
+Or with wget:
+```bash
+wget -qO- https://raw.githubusercontent.com/raythurman2386/straw/main/install.sh | sh
+```
+
+This installs both `straw` and `strawd` to `/usr/local/bin`.
+
+### Download Pre-built Binaries
+
+Download the latest release for your platform from the [releases page](https://github.com/raythurman2386/straw/releases).
+
+```bash
+# Example for Linux AMD64
+VERSION=$(curl -s https://api.github.com/repos/raythurman2386/straw/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+VERSION_NUM="${VERSION#v}"
+curl -LO "https://github.com/raythurman2386/straw/releases/download/${VERSION}/straw_${VERSION_NUM}_linux_amd64.tar.gz"
+tar -xzf straw_${VERSION_NUM}_linux_amd64.tar.gz
+sudo mv straw strawd /usr/local/bin/
+```
+
+### Build from Source
+
+Clone the repository and build manually:
 
 ```bash
 git clone https://github.com/raythurman2386/straw.git
 cd straw
-./install.sh
-```
-
-The script will:
-1. Build both `straw` (TUI) and `strawd` (Daemon).
-2. Install binaries to `/usr/local/bin`.
-3. Initialize the default configuration at `~/.config/straw/config.toml`.
-4. Set up and start the `strawd` systemd user service.
-
-### Manual Installation
-
-If you prefer to build manually:
-
-```bash
 make build
 # Binaries are now in bin/
+```
+
+Or use the full development install script (builds, installs, and sets up the systemd service):
+
+```bash
+./scripts/install-from-source.sh
 ```
 
 To uninstall the service only, run:

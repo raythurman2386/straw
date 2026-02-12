@@ -7,44 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Dry-run mode: Evaluate rules without modifying disk (In Progress).
-- Desktop Notifications (In Progress).
-- Windows Support (In Progress).
+### Planned
+- Dry-run mode: Evaluate rules without modifying disk.
+- Desktop notifications.
+- Windows support.
 
-## [0.4.0] - 2026-02-11
-
-### Added
-- **Hot Reload**: Support for `SIGHUP` and IPC `TRIGGER_RELOAD`.
-- **Rule Wizard**: Guided multi-step creation of rules in TUI.
-- **Persistence**: Automatic writing of rules to `config.toml` from TUI.
-- **Structured Logging**: Full `slog` implementation.
-- **Service Management**: Systemd User Service integration.
-- **Installation Scripts**: Unified `install.sh` and `setup.sh`.
-- MIT License, CONTRIBUTING.md, and Issue/PR templates.
-
-## [0.3.0] - 2026-02-10
+## [0.1.0-beta] - 2026-02-11
 
 ### Added
-- **TUI Core**: Root Bubble Tea model and update loop.
-- **Activity Log**: Real-time streaming viewport.
-- **Navigation**: Tabbed system (Activity, Rules, Creation).
-- **Themes**: Everforest and Catppuccin support with `lipgloss`.
-- **UI Visuals**: Consistent bordered containers and status indicators.
-
-## [0.2.0] - 2026-02-09
-
-### Added
+- **CLI**: `straw` TUI client and `strawd` daemon with Cobra, `--version` flag.
+- **Configuration**: TOML schema with validation, live reload via `SIGHUP` and IPC.
 - **Watcher**: Recursive directory watching with `fsnotify`.
-- **Rules Engine**: Predicates for Glob, Regex, Extension, Size, Age, and Type.
-- **Actions**: `move`, `copy`, `trash` (XDG), and `shell` executions.
-- **Robustness**: Cross-filesystem move fallback and collision handling.
+- **Rules Engine**: Match predicates for glob, regex, extension, size, age, and file type.
+- **Actions**: `move`, `copy`, `trash` (XDG compliant), and `shell` execution.
+- **TUI**: Bubble Tea interface with activity log, rules list, and rule creation wizard.
+- **Themes**: Everforest and Catppuccin color schemes with `lipgloss`.
+- **IPC**: JSON-RPC over Unix Domain Sockets for client-daemon communication.
+- **Service Management**: Systemd user service integration with install/uninstall scripts.
+- **Release Workflow**: GoReleaser with GitHub Actions for cross-platform builds (Linux, macOS, Raspberry Pi).
+- **Installer**: One-liner install script for downloading pre-built binaries from GitHub releases.
+- **Packaging**: DEB, RPM, APK, and Arch Linux packages via GoReleaser.
 
-## [0.1.0] - 2026-02-09
-
-### Added
-- Initial project scaffold and directory layout.
-- TOML configuration schema and validation.
-- JSON-RPC over Unix Domain Sockets protocol.
-- IPC Server/Client implementation.
-- `straw` and `strawd` CLI core with `cobra`.
+[Unreleased]: https://github.com/raythurman2386/straw/compare/v0.1.0-beta...HEAD
+[0.1.0-beta]: https://github.com/raythurman2386/straw/releases/tag/v0.1.0-beta

@@ -20,6 +20,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	var configPath string
 	var socketPath string
@@ -27,8 +33,9 @@ func main() {
 	var verbose bool
 
 	rootCmd := &cobra.Command{
-		Use:   "strawd",
-		Short: "Straw daemon",
+		Use:     "strawd",
+		Short:   "Straw daemon",
+		Version: version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			level := slog.LevelInfo
 			if verbose {
@@ -122,7 +129,7 @@ func main() {
 
 			// Register handlers
 			server.Register(ipc.MethodGetStatus, func(params json.RawMessage) (interface{}, error) {
-				return map[string]string{"status": "running", "version": "0.1.0"}, nil
+				return map[string]string{"status": "running", "version": version}, nil
 			})
 
 			server.Register(ipc.MethodGetRules, func(params json.RawMessage) (interface{}, error) {
@@ -235,6 +242,10 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&socketPath, "socket", "", "Override socket path")
 	rootCmd.PersistentFlags().StringVar(&logFilePath, "log-file", "", "Path to log file")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+
+	// Override Cobra's default version flag to avoid conflict with -v (verbose)
+	rootCmd.Flags().Bool("version", false, "Print the version")
+	rootCmd.SetVersionTemplate(fmt.Sprintf("strawd version {{.Version}} (commit: %s, built: %s)\n", commit, date))
 
 	checkCmd := &cobra.Command{
 		Use:   "check",

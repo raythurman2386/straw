@@ -1,0 +1,156 @@
+# GoReleaser configuration for straw
+# Documentation: https://goreleaser.com
+
+project_name: straw
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: straw
+    main: ./cmd/straw
+    binary: straw
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      # - windows  # Disabled until full Windows support is ready
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+      - arm
+    goarm:
+      - "7"
+      - "6"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+  - id: strawd
+    main: ./cmd/strawd
+    binary: strawd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+      - arm
+    goarm:
+      - "7"
+      - "6"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+archives:
+  - id: binaries
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    # format_overrides:
+    #   - goos: windows
+    #     format: zip
+    files:
+      - README.md
+      - LICENSE
+      - config.example.toml
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: raythurman2386
+    name: straw
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}}-v{{.Version}}"
+
+# brews:
+#   - name: straw
+#     homepage: "https://github.com/raythurman2386/straw"
+#     description: "File automation system with TUI client and daemon"
+#     license: "MIT"
+#     repository:
+#       owner: raythurman2386
+#       name: homebrew-tap
+#     folder: Formula
+#     dependencies:
+#       - name: go
+#         type: optional
+#     install: |
+#       bin.install "straw"
+#       bin.install "strawd"
+#     test: |
+#       system "#{bin}/straw", "--version"
+#       system "#{bin}/strawd", "--version"
+
+# scoops:
+#   - bucket:
+#       owner: raythurman2386
+#       name: scoop-bucket
+#     homepage: "https://github.com/raythurman2386/straw"
+#     description: "File automation system with TUI client and daemon"
+#     license: MIT
+
+nfpms:
+  - id: packages
+    package_name: straw
+    file_name_template: "{{ .ConventionalFileName }}"
+    vendor: Ray Thurman
+    homepage: "https://github.com/raythurman2386/straw"
+    maintainer: "Ray Thurman <rthurman2386@gmail.com>"
+    description: "File automation system with TUI client and daemon"
+    license: "MIT"
+    formats:
+      - deb
+      - rpm
+      - apk
+      - archlinux
+    contents:
+      - src: ./config.example.toml
+        dst: /etc/straw/config.example.toml
+        type: config|noreplace
+
+# Docker images (optional - enable if you want container support)
+# dockers:
+#   - image_templates:
+#       - "ghcr.io/raythurman2386/straw:{{ .Tag }}"
+#       - "ghcr.io/raythurman2386/straw:latest"
+#     dockerfile: Dockerfile
+#     build_flag_templates:
+#       - "--pull"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"

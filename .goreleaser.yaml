@@ -1,6 +1,8 @@
 # GoReleaser configuration for straw
 # Documentation: https://goreleaser.com
 
+version: 2
+
 project_name: straw
 
 before:
@@ -60,12 +62,14 @@ builds:
 
 archives:
   - id: binaries
-    format: tar.gz
+    formats:
+      - tar.gz
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
       {{- .Os }}_
       {{- .Arch }}
+      {{- with .Arm }}v{{ . }}{{ end }}
     # format_overrides:
     #   - goos: windows
     #     format: zip
@@ -78,7 +82,6 @@ checksum:
   name_template: "checksums.txt"
 
 changelog:
-  use: github
   sort: asc
   filters:
     exclude:

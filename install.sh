@@ -20,10 +20,10 @@ case "$ARCH" in
         ARCH="arm64"
         ;;
     armv7l)
-        ARCH="arm_7"
+        ARCH="armv7"
         ;;
     armv6l)
-        ARCH="arm_6"
+        ARCH="armv6"
         ;;
     i386|i686)
         ARCH="386"

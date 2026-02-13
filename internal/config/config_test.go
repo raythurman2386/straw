@@ -53,3 +53,43 @@ func TestConfig_Validate(t *testing.T) {
 		}
 	})
 }
+
+func TestConfig_Save(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config_save_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "config.toml")
+	c := &Config{
+		SocketPath: "/tmp/straw.sock",
+		Watch:      []WatchFolder{{Path: tmpDir}},
+		Rules:      []Rule{{Name: "Test", Actions: []Action{{Type: "trash"}}}},
+		TUI: TUIConfig{
+			Theme: "catppuccin",
+		},
+	}
+
+	if err := c.Save(configPath); err != nil {
+		t.Fatalf("failed to save config: %v", err)
+	}
+
+	// Verify file exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		t.Fatal("config file was not created")
+	}
+
+	// Load it back and verify
+	loaded, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load saved config: %v", err)
+	}
+
+	if loaded.TUI.Theme != "catppuccin" {
+		t.Errorf("expected theme catppuccin, got %s", loaded.TUI.Theme)
+	}
+	if loaded.SocketPath != "/tmp/straw.sock" {
+		t.Errorf("expected socket path /tmp/straw.sock, got %s", loaded.SocketPath)
+	}
+}

@@ -110,6 +110,28 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+func (c *Config) Save(path string) error {
+	if path == "" {
+		var err error
+		path, err = DefaultConfigPath()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+
+	data, err := toml.Marshal(c)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0644)
+}
+
 func (c *Config) Validate() error {
 	if len(c.Watch) == 0 {
 		return errors.New("config must include at least one watch folder")

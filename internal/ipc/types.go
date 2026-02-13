@@ -1,6 +1,10 @@
 package ipc
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"straw/internal/config"
+)
 
 // Method defines the type of request method.
 type Method string
@@ -9,9 +13,16 @@ const (
 	MethodGetStatus     Method = "GET_STATUS"
 	MethodGetRules      Method = "GET_RULES"
 	MethodAddRule       Method = "ADD_RULE"
+	MethodUpdateRule    Method = "UPDATE_RULE"
 	MethodTriggerReload Method = "TRIGGER_RELOAD"
 	MethodDryRun        Method = "DRY_RUN_REQUEST"
 )
+
+// UpdateRuleParams defines the parameters for updating a rule.
+type UpdateRuleParams struct {
+	OriginalName string      `json:"original_name"`
+	Rule         config.Rule `json:"rule"`
+}
 
 // Request represents a JSON command sent from client to daemon.
 type Request struct {

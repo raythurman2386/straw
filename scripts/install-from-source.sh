@@ -19,7 +19,6 @@ echo "Step 1: Setting up environment and configuration..."
 # 2. Build and Install binaries
 echo "Step 2: Building and installing binaries (may require sudo)..."
 cd "$PROJECT_ROOT"
-make build
 sudo make install
 
 # 3. Install the background service

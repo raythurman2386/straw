@@ -36,6 +36,7 @@ const (
 	tabRules
 	tabCreate
 	tabLogFile
+	tabSettings
 )
 
 type model struct {
@@ -43,11 +44,14 @@ type model struct {
 	connected       bool
 	err             error
 	socketPath      string
+	configPath      string
+	config          *config.Config
 	logs            []string
 	viewport        viewport.Model
 	logFileViewport viewport.Model
 	rulesList       list.Model
 	wizard          wizardModel
+	settings        settingsModel
 	activeTab       tab
 	ready           bool
 	theme           tui.Theme
@@ -57,7 +61,11 @@ type model struct {
 	logFilePath     string
 }
 
-func initialModel(socketPath string, themeName string, logFilePath string) model {
+func initialModel(socketPath string, configPath string, cfg *config.Config, logFilePath string) model {
+	themeName := "everforest"
+	if cfg != nil && cfg.TUI.Theme != "" {
+		themeName = cfg.TUI.Theme
+	}
 	theme := tui.GetTheme(themeName)
 	styles := tui.GetStyles(theme)
 
@@ -68,15 +76,23 @@ func initialModel(socketPath string, themeName string, logFilePath string) model
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = styles.ListTitle
 	l.Styles.HelpStyle = styles.Desc
+	l.Styles.NoItems = styles.ListDim.MarginLeft(2)
+	l.Styles.PaginationStyle = styles.ListDim
+	// Remove default border
+	l.Styles.TitleBar = lipgloss.NewStyle()
+	l.SetShowHelp(false)
 
 	return model{
 		socketPath:  socketPath,
+		configPath:  configPath,
+		config:      cfg,
 		logFilePath: logFilePath,
 		logs:        []string{},
 		theme:       theme,
 		styles:      styles,
 		rulesList:   l,
-		wizard:      newWizardModel(styles, theme),
+		wizard:      newWizardModel(styles, theme, nil),
+		settings:    newSettingsModel(cfg, configPath, styles, theme),
 		activeTab:   tabActivity,
 	}
 }
@@ -153,6 +169,20 @@ func addRuleCmd(client *ipc.Client, rule *config.Rule) tea.Cmd {
 	}
 }
 
+func updateRuleCmd(client *ipc.Client, originalName string, rule *config.Rule) tea.Cmd {
+	return func() tea.Msg {
+		params := ipc.UpdateRuleParams{
+			OriginalName: originalName,
+			Rule:         *rule,
+		}
+		_, err := client.Call(ipc.MethodUpdateRule, params)
+		if err != nil {
+			return errorMsg(err)
+		}
+		return fetchRulesCmd(client)()
+	}
+}
+
 func waitForEvent(client *ipc.Client) tea.Cmd {
 	return func() tea.Msg {
 		event := <-client.Events()
@@ -186,17 +216,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Batch(cmds...)
 			case "3":
 				m.activeTab = tabCreate
-				m.wizard = newWizardModel(m.styles, m.theme)
+				m.wizard = newWizardModel(m.styles, m.theme, nil)
 				return m, nil
 			case "4":
 				m.activeTab = tabLogFile
 				return m, readLogFileCmd(m.logFilePath)
+			case "5":
+				m.activeTab = tabSettings
+				return m, nil
 			case "r":
 				if m.connected {
 					m.addSystemLog("Triggering daemon reload...", true)
 					cmds = append(cmds, reloadDaemonCmd(m.client))
 				}
 				return m, tea.Batch(cmds...)
+			case "e":
+				if m.activeTab == tabRules && m.rulesList.SelectedItem() != nil {
+					ruleItem := m.rulesList.SelectedItem().(RuleItem)
+					m.activeTab = tabCreate
+					m.wizard = newWizardModel(m.styles, m.theme, &ruleItem.rule)
+					return m, nil
+				}
 			}
 		} else {
 			if msg.String() == "ctrl+c" {
@@ -208,13 +248,42 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case wizardCancelMsg:
-		m.activeTab = tabActivity
+		m.activeTab = tabRules
 
 	case wizardFinishedMsg:
 		m.activeTab = tabRules
 		if m.connected {
-			cmds = append(cmds, addRuleCmd(m.client, msg.rule))
+			if msg.originalName != "" {
+				cmds = append(cmds, updateRuleCmd(m.client, msg.originalName, msg.rule))
+			} else {
+				cmds = append(cmds, addRuleCmd(m.client, msg.rule))
+			}
 		}
+
+	case settingsUpdatedMsg:
+		m.config = msg.config
+		m.theme = tui.GetTheme(m.config.TUI.Theme)
+		m.styles = tui.GetStyles(m.theme)
+
+		// Update rules list styles
+		delegate := NewRuleDelegate(m.styles, m.theme)
+		m.rulesList.SetDelegate(delegate)
+		m.rulesList.Styles.Title = m.styles.ListTitle
+		m.rulesList.Styles.HelpStyle = m.styles.Desc
+
+		// Update wizard styles
+		m.wizard.styles = m.styles
+		m.wizard.theme = m.theme
+
+		// Update settings styles
+		m.settings.styles = m.styles
+		m.settings.theme = m.theme
+		// Re-create settings list delegate to pick up new styles
+		sd := settingsDelegate{styles: m.styles, theme: m.theme}
+		m.settings.list.SetDelegate(sd)
+		m.settings.list.Styles.Title = m.styles.ListTitle
+
+		m.addSystemLog(fmt.Sprintf("Theme updated to %s", m.config.TUI.Theme), true)
 
 	case logFileMsg:
 		m.logFileViewport.SetContent(string(msg))
@@ -229,21 +298,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		verticalMargin := headerHeight + footerHeight
 
 		if !m.ready {
-			m.viewport = viewport.New(msg.Width-4, msg.Height-verticalMargin)
+			m.viewport = viewport.New(msg.Width-6, msg.Height-verticalMargin-2)
 			m.viewport.YPosition = headerHeight
 
-			m.logFileViewport = viewport.New(msg.Width-4, msg.Height-verticalMargin)
+			m.logFileViewport = viewport.New(msg.Width-6, msg.Height-verticalMargin-2)
 			m.logFileViewport.YPosition = headerHeight
 
 			m.ready = true
 		} else {
-			m.viewport.Width = msg.Width - 4
-			m.viewport.Height = msg.Height - verticalMargin
+			m.viewport.Width = msg.Width - 6
+			m.viewport.Height = msg.Height - verticalMargin - 2
 
-			m.logFileViewport.Width = msg.Width - 4
-			m.logFileViewport.Height = msg.Height - verticalMargin
+			m.logFileViewport.Width = msg.Width - 6
+			m.logFileViewport.Height = msg.Height - verticalMargin - 2
 		}
-		m.rulesList.SetSize(msg.Width-4, msg.Height-verticalMargin)
+		m.rulesList.SetSize(msg.Width-6, msg.Height-verticalMargin-2)
+
+		// Send WindowSizeMsgs to sub-models so they can manage their own layout
+		subModelMsg := tea.WindowSizeMsg{
+			Width:  msg.Width - 6,
+			Height: msg.Height - verticalMargin - 2,
+		}
+		m.settings, _ = m.settings.Update(subModelMsg)
+		m.wizard, _ = m.wizard.Update(subModelMsg)
 
 	case connectedMsg:
 		m.connected = true
@@ -281,6 +358,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	} else if m.activeTab == tabLogFile {
 		m.logFileViewport, cmd = m.logFileViewport.Update(msg)
+		cmds = append(cmds, cmd)
+	} else if m.activeTab == tabSettings {
+		m.settings, cmd = m.settings.Update(msg)
 		cmds = append(cmds, cmd)
 	} else {
 		m.viewport, cmd = m.viewport.Update(msg)
@@ -378,6 +458,7 @@ func (m model) View() string {
 	tab2Style := m.styles.TabInactive
 	tab3Style := m.styles.TabInactive
 	tab4Style := m.styles.TabInactive
+	tab5Style := m.styles.TabInactive
 
 	if m.activeTab == tabActivity {
 		tab1Style = m.styles.TabActive
@@ -385,8 +466,10 @@ func (m model) View() string {
 		tab2Style = m.styles.TabActive
 	} else if m.activeTab == tabCreate {
 		tab3Style = m.styles.TabActive
-	} else {
+	} else if m.activeTab == tabLogFile {
 		tab4Style = m.styles.TabActive
+	} else {
+		tab5Style = m.styles.TabActive
 	}
 
 	tabs := m.styles.Tabs.Render(
@@ -395,6 +478,7 @@ func (m model) View() string {
 			tab2Style.Render("2. Rules"),
 			tab3Style.Render("3. New Rule"),
 			tab4Style.Render("4. Logs"),
+			tab5Style.Render("5. Settings"),
 		),
 	)
 
@@ -403,22 +487,21 @@ func (m model) View() string {
 	)
 
 	// 2. Content Container
-	contentStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.theme.Tertiary).
+	contentStyle := m.styles.LogContainer.
 		Width(m.width - 4).
-		Height(m.height - 9) // Account for header/footer
+		Height(m.height - 9)
 
 	var content string
 	if m.activeTab == tabRules {
-		content = contentStyle.Render(m.rulesList.View())
+		content = contentStyle.Padding(0, 1).Render(m.rulesList.View())
 	} else if m.activeTab == tabCreate {
 		content = contentStyle.Padding(1, 2).Render(m.wizard.View())
 	} else if m.activeTab == tabLogFile {
-		content = contentStyle.Render(m.logFileViewport.View())
+		content = contentStyle.Padding(0, 1).Render(m.logFileViewport.View())
+	} else if m.activeTab == tabSettings {
+		content = contentStyle.Padding(0, 1).Render(m.settings.View())
 	} else {
-		// Log view uses its own border in LogContainer style, but let's make it consistent
-		content = contentStyle.Render(m.viewport.View())
+		content = contentStyle.Padding(0, 1).Render(m.viewport.View())
 	}
 
 	// 3. Footer
@@ -427,9 +510,15 @@ func (m model) View() string {
 		m.renderKey("2", "Rules"),
 		m.renderKey("3", "New"),
 		m.renderKey("4", "Logs"),
+		m.renderKey("5", "Settings"),
 		m.renderKey("r", "Reload"),
-		m.renderKey("q", "Quit"),
 	}
+
+	if m.activeTab == tabRules {
+		keys = append(keys, m.renderKey("e", "Edit"))
+	}
+
+	keys = append(keys, m.renderKey("q", "Quit"))
 
 	footer := m.styles.Footer.Width(m.width - 4).Render(strings.Join(keys, "  "))
 
@@ -471,15 +560,23 @@ func main() {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var sock string
-			var themeName string
 			var daemonLogPath string
 
 			cfg, err := config.Load(configPath)
-			if err == nil {
-				sock = cfg.SocketPath
-				themeName = cfg.TUI.Theme
+			if err != nil {
+				// If config doesn't exist, create a default one
+				cfg = &config.Config{
+					SocketPath: config.DefaultSocketPath(),
+					TUI: config.TUIConfig{
+						Theme: "everforest",
+					},
+				}
+				if configPath == "" {
+					configPath, _ = config.DefaultConfigPath()
+				}
 			}
 
+			sock = cfg.SocketPath
 			if socketPath != "" {
 				sock = socketPath
 			}
@@ -497,7 +594,7 @@ func main() {
 				}
 			}
 
-			p := tea.NewProgram(initialModel(sock, themeName, daemonLogPath))
+			p := tea.NewProgram(initialModel(sock, configPath, cfg, daemonLogPath))
 			if _, err := p.Run(); err != nil {
 				return err
 			}

@@ -170,6 +170,51 @@ func main() {
 				return "rule added", nil
 			})
 
+			server.Register(ipc.MethodUpdateRule, func(params json.RawMessage) (interface{}, error) {
+				var args ipc.UpdateRuleParams
+				if err := json.Unmarshal(params, &args); err != nil {
+					return nil, err
+				}
+
+				// Persist to config file
+				data, err := os.ReadFile(configPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read config for update: %w", err)
+				}
+
+				var fullCfg config.Config
+				if err := toml.Unmarshal(data, &fullCfg); err != nil {
+					return nil, fmt.Errorf("failed to parse config for update: %w", err)
+				}
+
+				found := false
+				for i, r := range fullCfg.Rules {
+					if r.Name == args.OriginalName {
+						fullCfg.Rules[i] = args.Rule
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					return nil, fmt.Errorf("rule not found: %s", args.OriginalName)
+				}
+
+				newData, err := toml.Marshal(fullCfg)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal updated config: %w", err)
+				}
+
+				if err := os.WriteFile(configPath, newData, 0644); err != nil {
+					return nil, fmt.Errorf("failed to write updated config: %w", err)
+				}
+
+				slog.Info("Rule updated and persisted", "original_name", args.OriginalName, "new_name", args.Rule.Name)
+				go reloadConfig()
+
+				return "rule updated", nil
+			})
+
 			server.Register(ipc.MethodTriggerReload, func(params json.RawMessage) (interface{}, error) {
 				go reloadConfig()
 				return "reload triggered", nil

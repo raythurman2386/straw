@@ -25,27 +25,30 @@ const (
 )
 
 type wizardModel struct {
-	step        wizardStep
-	nameInput   textinput.Model
-	matchInput  textinput.Model
-	minAgeInput textinput.Model
-	maxAgeInput textinput.Model
-	targetInput textinput.Model
-	actionType  string // move, copy, trash, shell
-	styles      tui.Styles
-	theme       tui.Theme
+	step         wizardStep
+	originalName string // If editing, stores the name before any changes
+	nameInput    textinput.Model
+	matchInput   textinput.Model
+	minAgeInput  textinput.Model
+	maxAgeInput  textinput.Model
+	targetInput  textinput.Model
+	actionType   string // move, copy, trash, shell
+	styles       tui.Styles
+	theme        tui.Theme
+	width        int
+	height       int
 }
 
 type wizardFinishedMsg struct {
-	rule *config.Rule
+	rule         *config.Rule
+	originalName string // empty if new rule
 }
 
 type wizardCancelMsg struct{}
 
-func newWizardModel(styles tui.Styles, theme tui.Theme) wizardModel {
+func newWizardModel(styles tui.Styles, theme tui.Theme, ruleToEdit *config.Rule) wizardModel {
 	ni := textinput.New()
 	ni.Placeholder = "Enter rule name (e.g. Clean PDFs)"
-	ni.Focus()
 
 	mi := textinput.New()
 	mi.Placeholder = "Enter extension (e.g. .pdf) or glob (e.g. *.txt)"
@@ -59,16 +62,47 @@ func newWizardModel(styles tui.Styles, theme tui.Theme) wizardModel {
 	ti := textinput.New()
 	ti.Placeholder = "Enter destination directory path"
 
+	actionType := "move"
+	originalName := ""
+
+	if ruleToEdit != nil {
+		originalName = ruleToEdit.Name
+		ni.SetValue(ruleToEdit.Name)
+
+		if ruleToEdit.Match.Extension != "" {
+			mi.SetValue(ruleToEdit.Match.Extension)
+		} else if ruleToEdit.Match.Regex != "" {
+			mi.SetValue(ruleToEdit.Match.Regex)
+		} else {
+			mi.SetValue(ruleToEdit.Match.Glob)
+		}
+
+		if ruleToEdit.Match.MinAgeDays > 0 {
+			minAi.SetValue(fmt.Sprintf("%d", ruleToEdit.Match.MinAgeDays))
+		}
+		if ruleToEdit.Match.MaxAgeDays > 0 {
+			maxAi.SetValue(fmt.Sprintf("%d", ruleToEdit.Match.MaxAgeDays))
+		}
+
+		if len(ruleToEdit.Actions) > 0 {
+			actionType = ruleToEdit.Actions[0].Type
+			ti.SetValue(ruleToEdit.Actions[0].Target)
+		}
+	}
+
+	ni.Focus()
+
 	return wizardModel{
-		step:        stepName,
-		nameInput:   ni,
-		matchInput:  mi,
-		minAgeInput: minAi,
-		maxAgeInput: maxAi,
-		targetInput: ti,
-		actionType:  "move",
-		styles:      styles,
-		theme:       theme,
+		step:         stepName,
+		originalName: originalName,
+		nameInput:    ni,
+		matchInput:   mi,
+		minAgeInput:  minAi,
+		maxAgeInput:  maxAi,
+		targetInput:  ti,
+		actionType:   actionType,
+		styles:       styles,
+		theme:        theme,
 	}
 }
 
@@ -76,6 +110,15 @@ func (m wizardModel) Update(msg tea.Msg) (wizardModel, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.nameInput.Width = m.width - 4
+		m.matchInput.Width = m.width - 4
+		m.minAgeInput.Width = m.width - 4
+		m.maxAgeInput.Width = m.width - 4
+		m.targetInput.Width = m.width - 4
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
@@ -180,7 +223,7 @@ func (m wizardModel) nextStep() (wizardModel, tea.Cmd) {
 			_, _ = fmt.Sscanf(m.maxAgeInput.Value(), "%d", &rule.Match.MaxAgeDays)
 		}
 
-		return m, func() tea.Msg { return wizardFinishedMsg{rule: rule} }
+		return m, func() tea.Msg { return wizardFinishedMsg{rule: rule, originalName: m.originalName} }
 	}
 	return m, nil
 }
@@ -188,7 +231,11 @@ func (m wizardModel) nextStep() (wizardModel, tea.Cmd) {
 func (m wizardModel) View() string {
 	var s strings.Builder
 
-	title := m.styles.ListTitle.Render("Rule Creation Wizard")
+	titleText := "Rule Creation Wizard"
+	if m.originalName != "" {
+		titleText = "Edit Rule Wizard"
+	}
+	title := m.styles.ListTitle.Render(titleText)
 	s.WriteString(title + "\n\n")
 
 	successStyle := m.styles.ListSelected.Border(lipgloss.HiddenBorder())

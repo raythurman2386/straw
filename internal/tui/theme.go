@@ -53,6 +53,32 @@ type Styles struct {
 }
 
 var (
+	// Themes is a map of all available themes
+	Themes = map[string]Theme{
+		"catppuccin": Catppuccin,
+		"everforest": Everforest,
+		"nord":       Nord,
+	}
+
+	// Nord theme
+	Nord = Theme{
+		Name:       "Nord",
+		Background: lipgloss.Color("#2e3440"),
+		Foreground: lipgloss.Color("#d8dee9"),
+		Secondary:  lipgloss.Color("#3b4252"),
+		Tertiary:   lipgloss.Color("#4c566a"),
+		Accent:     lipgloss.Color("#88c0d0"),
+		Success:    lipgloss.Color("#a3be8c"),
+		Warning:    lipgloss.Color("#ebcb8b"),
+		Error:      lipgloss.Color("#bf616a"),
+		Dim:        lipgloss.Color("#616e88"),
+
+		ActionMove:  lipgloss.Color("#81a1c1"),
+		ActionCopy:  lipgloss.Color("#a3be8c"),
+		ActionTrash: lipgloss.Color("#bf616a"),
+		ActionShell: lipgloss.Color("#b48ead"),
+	}
+
 	// Catppuccin Macchiato
 	Catppuccin = Theme{
 		Name:       "Catppuccin",
@@ -93,13 +119,18 @@ var (
 )
 
 func GetTheme(name string) Theme {
-	switch name {
-	case "everforest":
-		return Everforest
-	case "catppuccin":
-		return Catppuccin
-	default:
-		return Everforest
+	if t, ok := Themes[name]; ok {
+		return t
+	}
+	return Everforest
+}
+
+// AllThemes returns all available themes
+func AllThemes() []Theme {
+	return []Theme{
+		Everforest,
+		Catppuccin,
+		Nord,
 	}
 }
 
@@ -161,8 +192,7 @@ func GetStyles(t Theme) Styles {
 		// Logs
 		LogContainer: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(t.Tertiary).
-			Padding(0, 1),
+			BorderForeground(t.Tertiary),
 
 		LogTime: lipgloss.NewStyle().
 			Foreground(t.Dim).

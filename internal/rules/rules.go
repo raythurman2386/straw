@@ -66,10 +66,9 @@ func (e *Engine) matches(m config.Match, path string, info os.FileInfo) bool {
 
 	// Glob
 	if m.Glob != "" {
-		// If glob contains path separator, match against full path?
-		// For now, let's assume it matches against the name unless it looks like a path.
+		// If glob contains a path separator, match against full path
 		target := name
-		if strings.Contains(m.Glob, "/") {
+		if strings.Contains(m.Glob, "/") || strings.Contains(m.Glob, string(filepath.Separator)) {
 			target = path
 		}
 
@@ -128,8 +127,7 @@ func (e *Engine) matches(m config.Match, path string, info os.FileInfo) bool {
 
 	// Hidden
 	if m.Hidden != nil {
-		isHidden := strings.HasPrefix(name, ".")
-		if *m.Hidden != isHidden {
+		if *m.Hidden != isHidden(name, path) {
 			return false
 		}
 	}

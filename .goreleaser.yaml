@@ -19,7 +19,7 @@ builds:
     goos:
       - linux
       - darwin
-      # - windows  # Disabled until full Windows support is ready
+      - windows
     goarch:
       - amd64
       - arm64
@@ -32,6 +32,8 @@ builds:
         goarch: "386"
       - goos: darwin
         goarch: arm
+      - goos: windows
+        goarch: arm
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
 
@@ -43,6 +45,7 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -54,6 +57,8 @@ builds:
       - goos: darwin
         goarch: "386"
       - goos: darwin
+        goarch: arm
+      - goos: windows
         goarch: arm
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
@@ -68,9 +73,9 @@ archives:
       {{- .Os }}_
       {{- .Arch }}
       {{- with .Arm }}v{{ . }}{{ end }}
-    # format_overrides:
-    #   - goos: windows
-    #     format: zip
+    format_overrides:
+      - goos: windows
+        format: zip
     files:
       - README.md
       - LICENSE
@@ -116,13 +121,13 @@ release:
 #       system "#{bin}/straw", "--version"
 #       system "#{bin}/strawd", "--version"
 
-# scoops:
-#   - bucket:
-#       owner: raythurman2386
-#       name: scoop-bucket
-#     homepage: "https://github.com/raythurman2386/straw"
-#     description: "File automation system with TUI client and daemon"
-#     license: MIT
+scoops:
+  - bucket:
+      owner: raythurman2386
+      name: scoop-bucket
+    homepage: "https://github.com/raythurman2386/straw"
+    description: "File automation system with TUI client and daemon"
+    license: MIT
 
 nfpms:
   - id: packages

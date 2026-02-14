@@ -29,12 +29,22 @@ We welcome pull requests! To ensure a smooth process:
 
 ## Development Setup
 
-Straw is written in Go. You'll need Go 1.21 or later installed.
+Straw is written in Go and runs on Linux, macOS, and Windows. You'll need Go 1.25 or later installed.
 
 1. Clone your fork: `git clone https://github.com/youruser/straw.git`
 2. Install dependencies: `go mod download`
 3. Build the project: `make build`
 4. Run tests: `make test`
+
+### Cross-Platform Notes
+
+When contributing, please keep cross-platform compatibility in mind:
+
+- Use `os.UserConfigDir()`, `os.UserCacheDir()`, and `os.TempDir()` instead of hardcoded paths.
+- Use `filepath.Join()` and `filepath.Separator` instead of hardcoded `/` in file paths.
+- Place platform-specific code in files with build tags (e.g., `foo_unix.go`, `foo_windows.go`).
+- If your change involves shell commands in tests, branch on `runtime.GOOS` to provide Windows-compatible equivalents.
+- CI runs tests on Linux, macOS, and Windows -- all three must pass.
 
 ## Code of Conduct
 

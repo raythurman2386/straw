@@ -1,18 +1,150 @@
 # Straw Configuration
 # See https://github.com/raythurman2386/straw for documentation
 
+# Socket path (optional - uses OS default if empty)
+socket_path = ""
+
 [tui]
-theme = "default"
+theme = "everforest"  # Options: "default", "everforest", "catppuccin"
 
 [[watch]]
 path = "~/Downloads"
 recursive = true
 
+# Organize PDFs by extension
 [[rules]]
 name = "Organize PDFs"
 enabled = true
+description = "Move PDF files to Documents/PDFs"
+
 [rules.match]
 extension = ".pdf"
+
 [[rules.actions]]
 type = "move"
 target = "~/Documents/PDFs"
+
+[[rules.actions]]
+type = "shell"
+target = "notify-send"
+args = ["Straw", "Moved $FILE to PDFs"]
+
+# Organize Images by regex pattern (case-insensitive)
+[[rules]]
+name = "Organize Images"
+enabled = true
+description = "Move image files to Pictures"
+
+[rules.match]
+regex = '(?i)\.(jpg|jpeg|png|gif|svg|webp|bmp)$'
+
+[[rules.actions]]
+type = "move"
+target = "~/Pictures"
+
+[[rules.actions]]
+type = "shell"
+target = "notify-send"
+args = ["Straw", "Moved image $FILE to Pictures"]
+
+# Organize Documents by regex
+[[rules]]
+name = "Organize Documents"
+enabled = true
+description = "Move document files to Documents"
+
+[rules.match]
+regex = '(?i)\.(doc|docx|txt|odt|rtf|csv|xlsx|pptx)$'
+
+[[rules.actions]]
+type = "move"
+target = "~/Documents"
+
+[[rules.actions]]
+type = "shell"
+target = "notify-send"
+args = ["Straw", "Moved document $FILE to Documents"]
+
+# Organize Archives
+[[rules]]
+name = "Organize Archives"
+enabled = true
+description = "Move archive files to Downloads/Archives"
+
+[rules.match]
+regex = '(?i)\.(zip|tar|gz|rar|7z|xz|bz2)$'
+
+[[rules.actions]]
+type = "move"
+target = "~/Downloads/Archives"
+
+[[rules.actions]]
+type = "shell"
+target = "notify-send"
+args = ["Straw", "Moved archive $FILE to Archives"]
+
+# Organize Audio files
+[[rules]]
+name = "Organize Audio"
+enabled = true
+description = "Move audio files to Music"
+
+[rules.match]
+regex = '(?i)\.(mp3|wav|flac|ogg|m4a|aac)$'
+
+[[rules.actions]]
+type = "move"
+target = "~/Music"
+
+[[rules.actions]]
+type = "shell"
+target = "notify-send"
+args = ["Straw", "Moved audio $FILE to Music"]
+
+# Organize Video files
+[[rules]]
+name = "Organize Video"
+enabled = true
+description = "Move video files to Videos"
+
+[rules.match]
+regex = '(?i)\.(mp4|mkv|mov|avi|webm|flv)$'
+
+[[rules.actions]]
+type = "move"
+target = "~/Videos"
+
+[[rules.actions]]
+type = "shell"
+target = "notify-send"
+args = ["Straw", "Moved video $FILE to Videos"]
+
+# Organize Code files
+[[rules]]
+name = "Organize Code"
+enabled = true
+description = "Move code files to Developer folder"
+
+[rules.match]
+regex = '(?i)\.(go|py|sh|js|ts|jsx|tsx)$'
+
+[[rules.actions]]
+type = "move"
+target = "~/Developer"
+
+[[rules.actions]]
+type = "shell"
+target = "notify-send"
+args = ["Straw", "Moved code file $FILE to Developer"]
+
+# Example: Cleanup old downloads (disabled by default)
+[[rules]]
+name = "Cleanup Old Downloads"
+enabled = false
+description = "Move files older than 30 days to trash"
+
+[rules.match]
+min_age_days = 30
+
+[[rules.actions]]
+type = "trash"

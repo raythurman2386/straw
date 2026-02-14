@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Straw is a Go-based file automation system with a TUI client (`straw`) and daemon (`strawd`). Uses Bubble Tea for TUI, Cobra for CLI, and JSON-RPC over Unix sockets for IPC.
+Straw is a Go-based file automation system with a TUI client (`straw`) and daemon (`strawd`). Runs on Linux, macOS, and Windows. Uses Bubble Tea for TUI, Cobra for CLI, and JSON-RPC over Unix sockets for IPC.
 
 ## Build Commands
 
@@ -145,6 +145,19 @@ func Load(path string) (*Config, error) { ... }
 - Line length: aim for 100 chars max (Go doesn't enforce)
 - Indentation: tabs (Go standard)
 - Opening braces: same line as statement
+
+### Platform-Specific Code
+- Use Go build tags (`//go:build`) to split platform code into separate files
+- File naming convention: `<name>_unix.go` (for `//go:build !windows`) and `<name>_windows.go`
+- Keep main application code platform-agnostic where possible
+- Use stdlib functions for OS paths: `os.UserConfigDir()`, `os.UserCacheDir()`, `os.TempDir()`
+- Use `filepath.Join()` and `filepath.Separator` instead of hardcoded path separators
+- Guard Unix-only syscalls (e.g., `os.Chmod` for socket permissions) with `runtime.GOOS` checks
+- On Windows, only `os.Interrupt` is meaningful for signal handling; `SIGHUP`/`SIGTERM` have no effect
+- Existing platform-split files:
+  - `cmd/strawd/signal_unix.go` / `signal_windows.go` — signal handling
+  - `internal/actions/trash_unix.go` / `trash_windows.go` — trash implementation
+  - `internal/rules/hidden_unix.go` / `hidden_windows.go` — hidden file detection
 
 ## Project Structure
 

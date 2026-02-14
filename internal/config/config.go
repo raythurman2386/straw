@@ -51,24 +51,36 @@ type TUIConfig struct {
 	Theme string `toml:"theme"`
 }
 
+// DefaultConfigPath returns the platform-appropriate config file path.
+// On Linux:   ~/.config/straw/config.toml
+// On macOS:   ~/Library/Application Support/straw/config.toml
+// On Windows: %APPDATA%\straw\config.toml
 func DefaultConfigPath() (string, error) {
-	home, err := os.UserHomeDir()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "straw", "config.toml"), nil
+	return filepath.Join(configDir, "straw", "config.toml"), nil
 }
 
+// DefaultStateDir returns the platform-appropriate state directory.
+// On Linux:   ~/.cache/straw/
+// On macOS:   ~/Library/Caches/straw/
+// On Windows: %LOCALAPPDATA%\straw\
 func DefaultStateDir() (string, error) {
-	home, err := os.UserHomeDir()
+	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".local", "state", "straw"), nil
+	return filepath.Join(cacheDir, "straw"), nil
 }
 
+// DefaultSocketPath returns the platform-appropriate socket path.
+// On Linux:   $XDG_RUNTIME_DIR/straw.sock or state dir fallback
+// On macOS:   state dir
+// On Windows: %LOCALAPPDATA%\straw\straw.sock or %TEMP%\straw.sock
 func DefaultSocketPath() string {
-	// Try XDG_RUNTIME_DIR first
+	// Try XDG_RUNTIME_DIR first (Linux)
 	runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
 	if runtimeDir != "" {
 		return filepath.Join(runtimeDir, "straw.sock")
@@ -80,8 +92,8 @@ func DefaultSocketPath() string {
 		return filepath.Join(stateDir, "straw.sock")
 	}
 
-	// Last resort
-	return "/tmp/straw.sock"
+	// Last resort: platform temp directory
+	return filepath.Join(os.TempDir(), "straw.sock")
 }
 
 func Load(path string) (*Config, error) {

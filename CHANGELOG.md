@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Cross-platform support**: Linux, macOS, and Windows (10 1803+) are now all supported.
+- **Windows trash**: Native Recycle Bin integration via `SHFileOperationW` (shell32.dll).
+- **Windows hidden files**: Detects `FILE_ATTRIBUTE_HIDDEN` in addition to dot-prefix convention.
+- **Platform-aware config paths**: Uses `os.UserConfigDir()` / `os.UserCacheDir()` for OS-appropriate defaults.
+- **Windows signal handling**: Graceful shutdown via `os.Interrupt` (Ctrl+C); config reload via IPC `TRIGGER_RELOAD`.
+- **CI matrix**: GitHub Actions now tests on Ubuntu, macOS, and Windows.
+- **GoReleaser**: Windows builds (amd64, 386, arm64) with zip archives and Scoop bucket.
+
 ### Planned
 - Dry-run mode: Evaluate rules without modifying disk.
 - Desktop notifications.
-- Windows support.
 
 ## [0.1.0-beta] - 2026-02-11
 
@@ -24,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Themes**: Everforest and Catppuccin color schemes with `lipgloss`.
 - **IPC**: JSON-RPC over Unix Domain Sockets for client-daemon communication.
 - **Service Management**: Systemd user service integration with install/uninstall scripts.
-- **Release Workflow**: GoReleaser with GitHub Actions for cross-platform builds (Linux, macOS, Raspberry Pi).
+- **Release Workflow**: GoReleaser with GitHub Actions for cross-platform builds (Linux, macOS, Windows, Raspberry Pi).
 - **Installer**: One-liner install script for downloading pre-built binaries from GitHub releases.
 - **Packaging**: DEB, RPM, APK, and Arch Linux packages via GoReleaser.
 

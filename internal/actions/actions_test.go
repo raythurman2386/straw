@@ -3,6 +3,7 @@ package actions
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -20,7 +21,7 @@ func TestExecutor_ExpandPath(t *testing.T) {
 	})
 
 	t.Run("Ignores non-tilde", func(t *testing.T) {
-		path := "/tmp/test"
+		path := filepath.Join(os.TempDir(), "test")
 		if e.expandPath(path) != path {
 			t.Error("should not modify absolute path")
 		}
@@ -97,25 +98,41 @@ func TestExecutor_Shell(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	src := filepath.Join(tmpDir, "test.sh")
-	if err := os.WriteFile(src, []byte("echo hello"), 0644); err != nil {
+	src := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(src, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("Split command and substitute $FILE", func(t *testing.T) {
-		// Using 'ls' as a safe command that should exist
-		err := e.shell(src, "ls -l $FILE", nil)
-		if err != nil {
-			t.Errorf("shell failed: %v", err)
+		if runtime.GOOS == "windows" {
+			// Use 'cmd /c dir' on Windows instead of 'ls'
+			err := e.shell(src, "cmd", []string{"/c", "dir", "$FILE"})
+			if err != nil {
+				t.Errorf("shell failed: %v", err)
+			}
+		} else {
+			err := e.shell(src, "ls -l $FILE", nil)
+			if err != nil {
+				t.Errorf("shell failed: %v", err)
+			}
 		}
 	})
 
 	t.Run("Full command as Target", func(t *testing.T) {
-		err := e.shell(src, "touch "+filepath.Join(tmpDir, "touched.txt"), nil)
-		if err != nil {
-			t.Errorf("shell failed: %v", err)
+		touchedFile := filepath.Join(tmpDir, "touched.txt")
+		if runtime.GOOS == "windows" {
+			// Use 'cmd /c type nul >' equivalent via Go-friendly command
+			err := e.shell(src, "cmd", []string{"/c", "copy", "nul", touchedFile})
+			if err != nil {
+				t.Errorf("shell failed: %v", err)
+			}
+		} else {
+			err := e.shell(src, "touch "+touchedFile, nil)
+			if err != nil {
+				t.Errorf("shell failed: %v", err)
+			}
 		}
-		if _, err := os.Stat(filepath.Join(tmpDir, "touched.txt")); os.IsNotExist(err) {
+		if _, err := os.Stat(touchedFile); os.IsNotExist(err) {
 			t.Error("shell command did not create file")
 		}
 	})

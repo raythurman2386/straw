@@ -24,10 +24,16 @@ extension = ".pdf"
 type = "move"
 target = "~/Documents/PDFs"
 
+# Shell notification (Linux/macOS only — uses notify-send)
+# On Windows, replace with a PowerShell toast or remove this action block.
 [[rules.actions]]
 type = "shell"
 target = "notify-send"
 args = ["Straw", "Moved $FILE to PDFs"]
+# Windows alternative:
+# type = "shell"
+# target = "powershell"
+# args = ["-Command", "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('Moved $FILE to PDFs', 'Straw')"]
 
 # Organize Images by regex pattern (case-insensitive)
 [[rules]]
@@ -42,6 +48,7 @@ regex = '(?i)\.(jpg|jpeg|png|gif|svg|webp|bmp)$'
 type = "move"
 target = "~/Pictures"
 
+# Shell notification (Linux/macOS only)
 [[rules.actions]]
 type = "shell"
 target = "notify-send"
@@ -60,6 +67,7 @@ regex = '(?i)\.(doc|docx|txt|odt|rtf|csv|xlsx|pptx)$'
 type = "move"
 target = "~/Documents"
 
+# Shell notification (Linux/macOS only)
 [[rules.actions]]
 type = "shell"
 target = "notify-send"
@@ -78,6 +86,7 @@ regex = '(?i)\.(zip|tar|gz|rar|7z|xz|bz2)$'
 type = "move"
 target = "~/Downloads/Archives"
 
+# Shell notification (Linux/macOS only)
 [[rules.actions]]
 type = "shell"
 target = "notify-send"
@@ -96,6 +105,7 @@ regex = '(?i)\.(mp3|wav|flac|ogg|m4a|aac)$'
 type = "move"
 target = "~/Music"
 
+# Shell notification (Linux/macOS only)
 [[rules.actions]]
 type = "shell"
 target = "notify-send"
@@ -114,6 +124,7 @@ regex = '(?i)\.(mp4|mkv|mov|avi|webm|flv)$'
 type = "move"
 target = "~/Videos"
 
+# Shell notification (Linux/macOS only)
 [[rules.actions]]
 type = "shell"
 target = "notify-send"
@@ -132,6 +143,7 @@ regex = '(?i)\.(go|py|sh|js|ts|jsx|tsx)$'
 type = "move"
 target = "~/Developer"
 
+# Shell notification (Linux/macOS only)
 [[rules.actions]]
 type = "shell"
 target = "notify-send"

@@ -40,8 +40,14 @@ wget -qO- https://raw.githubusercontent.com/raythurman2386/straw/main/install.sh
 
 This installs both `straw` and `strawd` to `/usr/local/bin`.
 
-### Windows (Scoop)
+### Windows
 
+**Quick Install (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/raythurman2386/straw/main/install.ps1 | iex
+```
+
+**Via Scoop:**
 ```powershell
 scoop bucket add straw https://github.com/raythurman2386/scoop-bucket
 scoop install straw

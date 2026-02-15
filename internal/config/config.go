@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"straw/internal/pathutil"
+
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -115,6 +117,9 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
+	// Expand tilde in all paths before validation
+	cfg.expandPaths()
+
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -142,6 +147,21 @@ func (c *Config) Save(path string) error {
 	}
 
 	return os.WriteFile(path, data, 0644)
+}
+
+// expandPaths normalizes all user-facing paths by expanding tilde prefixes.
+// This must be called before Validate() so that os.Stat sees real paths.
+func (c *Config) expandPaths() {
+	for i := range c.Watch {
+		c.Watch[i].Path = pathutil.ExpandPath(c.Watch[i].Path)
+	}
+	for i := range c.Rules {
+		for j := range c.Rules[i].Actions {
+			if c.Rules[i].Actions[j].Target != "" {
+				c.Rules[i].Actions[j].Target = pathutil.ExpandPath(c.Rules[i].Actions[j].Target)
+			}
+		}
+	}
 }
 
 func (c *Config) Validate() error {

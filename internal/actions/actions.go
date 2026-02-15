@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"straw/internal/config"
+	"straw/internal/pathutil"
 )
 
 type Executor struct{}
@@ -82,15 +83,9 @@ func (e *Executor) copy(src, destDir string) error {
 }
 
 func (e *Executor) expandPath(path string) string {
-	if strings.HasPrefix(path, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		return filepath.Join(home, path[2:])
-	}
-	return path
+	return pathutil.ExpandPath(path)
 }
+
 func (e *Executor) copyToPath(src, dest string) error {
 	source, err := os.Open(src)
 	if err != nil {

@@ -122,7 +122,7 @@ release:
 #       system "#{bin}/strawd", "--version"
 
 scoops:
-  - bucket:
+  - repository:
       owner: raythurman2386
       name: scoop-bucket
     homepage: "https://github.com/raythurman2386/straw"

@@ -47,8 +47,6 @@ This installs both `straw` and `strawd` to `/usr/local/bin`.
 irm https://raw.githubusercontent.com/raythurman2386/straw/main/install.ps1 | iex
 ```
 
-
-
 Or download the `.zip` archive from the [releases page](https://github.com/raythurman2386/straw/releases) and add it to your `PATH`.
 
 ### Download Pre-built Binaries

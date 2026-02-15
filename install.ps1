@@ -16,9 +16,6 @@
 .PARAMETER NoPath
     Skip adding the install directory to the user PATH.
 
-.PARAMETER NoService
-    Skip registering strawd as a background scheduled task.
-
 .EXAMPLE
     irm https://raw.githubusercontent.com/raythurman2386/straw/main/install.ps1 | iex
 
@@ -32,8 +29,7 @@
 param(
     [string]$Version = "",
     [string]$InstallDir = "",
-    [switch]$NoPath,
-    [switch]$NoService
+    [switch]$NoPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -171,35 +167,6 @@ target = "~/Documents/PDFs"
     Write-Host "Config already exists at $configFile" -ForegroundColor Yellow
 }
 
-# --- Setup Scheduled Task ---
-if (-not $NoService) {
-    $taskName = "StrawDaemon"
-    $taskActionPath = Join-Path $InstallDir "strawd.exe"
-    
-    # We use PowerShell to wrap the executable so it runs hidden (no console window)
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -Command & '$taskActionPath'"
-    # Starting at logon ensures it runs for the user session
-    $trigger = New-ScheduledTaskTrigger -AtLogon
-    # Settings to keep it running
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -Priority 7
-    
-    Write-Host "Registering background task '$taskName'..."
-    try {
-        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -User $env:USERNAME -Force | Out-Null
-        Write-Host "Registered scheduled task '$taskName' to run at logon." -ForegroundColor Green
-        
-        # Start execution immediately
-        if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') {
-             Start-ScheduledTask -TaskName $taskName
-             Write-Host "Started '$taskName' task." -ForegroundColor Green
-        }
-    } catch {
-        Write-Warning "Failed to register scheduled task: $_"
-        Write-Warning "You may need to run this script as Administrator or start strawd manually."
-    }
-}
-
 # --- Cleanup ---
 Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
 
@@ -215,15 +182,11 @@ Write-Host "  - strawd.exe (daemon)"
 Write-Host ""
 Write-Host "Configuration: $configFile"
 Write-Host ""
-if (-not $NoService) {
-    Write-Host "Service: 'StrawDaemon' scheduled task registered and active."
-} else {
-    Write-Host "Service: Skipped (use -NoService:$false to enable)"
-}
-Write-Host ""
 Write-Host "To get started:"
 Write-Host "  1. Edit your config:  notepad $configFile"
-Write-Host "  2. Start the TUI:     straw"
+Write-Host "  2. Start the daemon:  strawd"
+Write-Host "     (To run at startup, add a shortcut to existing 'strawd.exe' in your 'Startup' folder)"
+Write-Host "  3. Start the TUI:     straw"
 
 if (-not $NoPath) {
     Write-Host ""

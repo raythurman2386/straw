@@ -16,7 +16,7 @@ func TestConfig_Validate(t *testing.T) {
 	t.Run("Valid config", func(t *testing.T) {
 		c := &Config{
 			Watch: []WatchFolder{{Path: tmpDir, Recursive: true}},
-			Rules: []Rule{{Name: "Test", Actions: []Action{{Type: "move", Target: "/tmp"}}}},
+			Rules: []Rule{{Name: "Test", Actions: []Action{{Type: "move", Target: filepath.Join(os.TempDir(), "archive")}}}},
 		}
 		if err := c.Validate(); err != nil {
 			t.Errorf("expected no error, got %v", err)
@@ -34,7 +34,7 @@ func TestConfig_Validate(t *testing.T) {
 
 	t.Run("Non-existent watch path", func(t *testing.T) {
 		c := &Config{
-			Watch: []WatchFolder{{Path: "/non/existent/path"}},
+			Watch: []WatchFolder{{Path: filepath.Join(os.TempDir(), "non_existent_straw_test_path")}},
 		}
 		if err := c.Validate(); err == nil {
 			t.Error("expected error for non-existent path")
@@ -61,9 +61,10 @@ func TestConfig_Save(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	socketPath := filepath.Join(os.TempDir(), "straw_test.sock")
 	configPath := filepath.Join(tmpDir, "config.toml")
 	c := &Config{
-		SocketPath: "/tmp/straw.sock",
+		SocketPath: socketPath,
 		Watch:      []WatchFolder{{Path: tmpDir}},
 		Rules:      []Rule{{Name: "Test", Actions: []Action{{Type: "trash"}}}},
 		TUI: TUIConfig{
@@ -89,7 +90,7 @@ func TestConfig_Save(t *testing.T) {
 	if loaded.TUI.Theme != "catppuccin" {
 		t.Errorf("expected theme catppuccin, got %s", loaded.TUI.Theme)
 	}
-	if loaded.SocketPath != "/tmp/straw.sock" {
-		t.Errorf("expected socket path /tmp/straw.sock, got %s", loaded.SocketPath)
+	if loaded.SocketPath != socketPath {
+		t.Errorf("expected socket path %s, got %s", socketPath, loaded.SocketPath)
 	}
 }

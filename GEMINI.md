@@ -1,13 +1,13 @@
 # Gemini Context: Straw
 
-Straw is a terminal-based, daemon-backed file automation system built with Go. It watches specific directories for filesystem events, evaluates them against user-defined rules, and executes automated actions.
+Straw is a terminal-based, daemon-backed file automation system built with Go. It watches specific directories for filesystem events, evaluates them against user-defined rules, and executes automated actions. It runs on Linux, macOS, and Windows (10 1803+).
 
 ## Project Overview
 
 - **Architecture**: Client-Server model.
     - `strawd`: The background daemon (engine) that watches folders and executes rules.
     - `straw`: The TUI client (interface) built with Bubble Tea for real-time monitoring and management.
-- **Communication (IPC)**: JSON-RPC over Unix Domain Sockets (default: `/tmp/straw.sock`).
+- **Communication (IPC)**: JSON-RPC over Unix Domain Sockets (works on all supported platforms including Windows 10+). Default socket path is OS-dependent (e.g., `/tmp/straw.sock` on Linux).
 - **Core Technologies**:
     - **Language**: Go 1.25+
     - **TUI**: [Bubble Tea](https://github.com/charmbracelet/bubbletea) & [Lip Gloss](https://github.com/charmbracelet/lipgloss)
@@ -19,10 +19,10 @@ Straw is a terminal-based, daemon-backed file automation system built with Go. I
 
 - `cmd/`: Entry points for `straw` (client) and `strawd` (daemon).
 - `internal/`: Core logic packages.
-    - `actions/`: Implements file operations (`move`, `copy`, `trash`, `shell`).
+    - `actions/`: Implements file operations (`move`, `copy`, `trash`, `shell`). Platform-specific code uses build tags (`trash_unix.go`, `trash_windows.go`).
     - `config/`: Configuration loading and validation.
-    - `ipc/`: Unix socket server/client and JSON-RPC types.
-    - `rules/`: The rules evaluation engine.
+    - `ipc/`: Socket server/client and JSON-RPC types.
+    - `rules/`: The rules evaluation engine. Platform-specific hidden file detection (`hidden_unix.go`, `hidden_windows.go`).
     - `watcher/`: Filesystem event watching wrapper.
     - `tui/`: Shared TUI components and themes.
     - `logging/`: Structured logging setup using `slog`.
@@ -41,7 +41,7 @@ Straw is a terminal-based, daemon-backed file automation system built with Go. I
 ### Execution
 - **Start Daemon**: `strawd`
 - **Start TUI**: `straw`
-- **Reload Config**: `pkill -HUP strawd` or via TUI.
+- **Reload Config**: Via TUI, or `pkill -HUP strawd` on Linux/macOS, or the `TRIGGER_RELOAD` IPC command on any platform.
 
 ## Development Conventions
 
@@ -52,9 +52,15 @@ Straw is a terminal-based, daemon-backed file automation system built with Go. I
 - **Actions**:
     - `move`: Moves file to target directory (handles cross-device fallback).
     - `copy`: Copies file to target directory.
-    - `trash`: Moves file to XDG-compliant trash.
+    - `trash`: Moves file to native OS trash (XDG on Linux, Finder trash on macOS, Recycle Bin on Windows).
     - `shell`: Executes a shell command with `$FILE` substitution.
 
 ## Configuration Details
-Default config path: `~/.config/straw/config.toml`
-Default log path: `~/.local/state/straw/strawd.log`
+
+Default paths are OS-dependent (resolved via `os.UserConfigDir()` and `os.UserCacheDir()`):
+
+| OS | Config Path | Log Path |
+|----|-------------|----------|
+| Linux | `~/.config/straw/config.toml` | `~/.cache/straw/strawd.log` |
+| macOS | `~/Library/Application Support/straw/config.toml` | `~/Library/Caches/straw/strawd.log` |
+| Windows | `%AppData%\straw\config.toml` | `%LocalAppData%\straw\strawd.log` |

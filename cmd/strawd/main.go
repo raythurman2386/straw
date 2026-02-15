@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 
 	"straw/internal/actions"
 	"straw/internal/config"
@@ -266,18 +264,8 @@ func main() {
 				}
 			}()
 
-			// Wait for signal
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-
-			for sig := range sigCh {
-				if sig == syscall.SIGHUP {
-					reloadConfig()
-				} else {
-					slog.Info("Shutting down", "signal", sig)
-					return nil
-				}
-			}
+			// Wait for signal (platform-specific)
+			waitForSignal(reloadConfig)
 
 			return nil
 		},

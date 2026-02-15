@@ -9,7 +9,10 @@ on:
 jobs:
   build:
     name: Build and Test
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,12 +24,14 @@ jobs:
           check-latest: true
 
       - name: Format
+        if: matrix.os == 'ubuntu-latest'
         run: go fmt ./...
 
       - name: Vet
         run: go vet ./...
 
       - name: Lint
+        if: matrix.os == 'ubuntu-latest'
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest

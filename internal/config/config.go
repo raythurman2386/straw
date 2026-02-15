@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"straw/internal/pathutil"
+
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -51,24 +53,36 @@ type TUIConfig struct {
 	Theme string `toml:"theme"`
 }
 
+// DefaultConfigPath returns the platform-appropriate config file path.
+// On Linux:   ~/.config/straw/config.toml
+// On macOS:   ~/Library/Application Support/straw/config.toml
+// On Windows: %APPDATA%\straw\config.toml
 func DefaultConfigPath() (string, error) {
-	home, err := os.UserHomeDir()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "straw", "config.toml"), nil
+	return filepath.Join(configDir, "straw", "config.toml"), nil
 }
 
+// DefaultStateDir returns the platform-appropriate state directory.
+// On Linux:   ~/.cache/straw/
+// On macOS:   ~/Library/Caches/straw/
+// On Windows: %LOCALAPPDATA%\straw\
 func DefaultStateDir() (string, error) {
-	home, err := os.UserHomeDir()
+	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".local", "state", "straw"), nil
+	return filepath.Join(cacheDir, "straw"), nil
 }
 
+// DefaultSocketPath returns the platform-appropriate socket path.
+// On Linux:   $XDG_RUNTIME_DIR/straw.sock or state dir fallback
+// On macOS:   state dir
+// On Windows: %LOCALAPPDATA%\straw\straw.sock or %TEMP%\straw.sock
 func DefaultSocketPath() string {
-	// Try XDG_RUNTIME_DIR first
+	// Try XDG_RUNTIME_DIR first (Linux)
 	runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
 	if runtimeDir != "" {
 		return filepath.Join(runtimeDir, "straw.sock")
@@ -80,8 +94,8 @@ func DefaultSocketPath() string {
 		return filepath.Join(stateDir, "straw.sock")
 	}
 
-	// Last resort
-	return "/tmp/straw.sock"
+	// Last resort: platform temp directory
+	return filepath.Join(os.TempDir(), "straw.sock")
 }
 
 func Load(path string) (*Config, error) {
@@ -102,6 +116,9 @@ func Load(path string) (*Config, error) {
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
+
+	// Expand tilde in all paths before validation
+	cfg.expandPaths()
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -130,6 +147,21 @@ func (c *Config) Save(path string) error {
 	}
 
 	return os.WriteFile(path, data, 0644)
+}
+
+// expandPaths normalizes all user-facing paths by expanding tilde prefixes.
+// This must be called before Validate() so that os.Stat sees real paths.
+func (c *Config) expandPaths() {
+	for i := range c.Watch {
+		c.Watch[i].Path = pathutil.ExpandPath(c.Watch[i].Path)
+	}
+	for i := range c.Rules {
+		for j := range c.Rules[i].Actions {
+			if c.Rules[i].Actions[j].Target != "" {
+				c.Rules[i].Actions[j].Target = pathutil.ExpandPath(c.Rules[i].Actions[j].Target)
+			}
+		}
+	}
 }
 
 func (c *Config) Validate() error {

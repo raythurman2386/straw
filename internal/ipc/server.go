@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 )
 
@@ -45,10 +46,12 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	// Restrict permissions to owner only
-	if err := os.Chmod(s.socketPath, 0600); err != nil {
-		l.Close()
-		return fmt.Errorf("failed to set socket permissions: %w", err)
+	// Restrict permissions to owner only (no-op on Windows)
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(s.socketPath, 0600); err != nil {
+			l.Close()
+			return fmt.Errorf("failed to set socket permissions: %w", err)
+		}
 	}
 
 	s.listener = l

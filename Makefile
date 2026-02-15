@@ -2,7 +2,7 @@
 
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
-GO ?= $(shell which go)
+GO ?= go
 
 # Attempt to find golangci-lint
 LINTER := $(shell which golangci-lint 2> /dev/null || which $(HOME)/go/bin/golangci-lint 2> /dev/null || echo "golangci-lint")
@@ -11,7 +11,7 @@ build:
 	$(GO) build -o bin/straw ./cmd/straw
 	$(GO) build -o bin/strawd ./cmd/strawd
 
-install: build
+install:
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 bin/straw $(DESTDIR)$(BINDIR)/
 	install -m 755 bin/strawd $(DESTDIR)$(BINDIR)/

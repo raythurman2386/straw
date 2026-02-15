@@ -3,7 +3,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/raythurman2386/straw)](https://go.dev/)
 [![License](https://img.shields.io/github/license/raythurman2386/straw)](LICENSE)
 
-Straw is a modern, terminal-based file automation system built with Go. It features a persistent background daemon (`strawd`) that monitors your filesystem and an interactive TUI client (`straw`) for real-time monitoring and configuration.
+Straw is a modern, terminal-based file automation system built with Go. It runs on **Linux**, **macOS**, and **Windows**. It features a persistent background daemon (`strawd`) that monitors your filesystem and an interactive TUI client (`straw`) for real-time monitoring and configuration.
 
 ## 🚀 Features
 
@@ -14,17 +14,18 @@ Straw is a modern, terminal-based file automation system built with Go. It featu
   - **Visibility:** Filter by hidden or visible files.
 - **Automated Actions:**
   - `move` / `copy`: Organize files into specific directories.
-  - `trash`: Safely move files to the system trash (XDG compliant).
+  - `trash`: Safely move files to the system trash (Recycle Bin on Windows, XDG trash on Linux, Finder trash on macOS).
   - `shell`: Execute custom scripts with `$FILE` environment variable support.
 - **Interactive TUI:**
   - Real-time event logging and status monitoring.
   - Interactive Rule Wizard for easy configuration without manual editing.
-- **Live Reload:** Configuration updates instantly via SIGHUP or TUI updates.
+- **Live Reload:** Configuration updates instantly via the TUI or daemon reload signal.
+- **Cross-Platform:** Runs on Linux, macOS, and Windows (10 1803+) with platform-native behaviors.
 - **Lightweight & Efficient:** Written in Go with minimal overhead and JSON-RPC over Unix sockets for communication.
 
 ## 🛠 Installation
 
-### Quick Install (Recommended)
+### Quick Install (Linux/macOS)
 
 One-liner to download and install the latest release:
 
@@ -38,6 +39,21 @@ wget -qO- https://raw.githubusercontent.com/raythurman2386/straw/main/install.sh
 ```
 
 This installs both `straw` and `strawd` to `/usr/local/bin`.
+
+### Windows
+
+**Quick Install (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/raythurman2386/straw/main/install.ps1 | iex
+```
+
+**Via Scoop:**
+```powershell
+scoop bucket add straw https://github.com/raythurman2386/scoop-bucket
+scoop install straw
+```
+
+Or download the `.zip` archive from the [releases page](https://github.com/raythurman2386/straw/releases) and add it to your `PATH`.
 
 ### Download Pre-built Binaries
 
@@ -76,7 +92,13 @@ To uninstall the service only, run:
 
 ## ⚙️ Configuration
 
-Straw uses TOML for configuration. You can find it at `~/.config/straw/config.toml`.
+Straw uses TOML for configuration. The config file location depends on your OS:
+
+| OS | Default Config Path |
+|----|---------------------|
+| Linux | `~/.config/straw/config.toml` |
+| macOS | `~/Library/Application Support/straw/config.toml` |
+| Windows | `%AppData%\straw\config.toml` |
 
 ### Example Configuration
 
@@ -123,8 +145,9 @@ target = "~/Projects/snippets"
 
 ### The Daemon (`strawd`)
 
-The daemon usually runs in the background as a systemd service.
+The daemon runs in the background and watches your filesystem.
 
+**Linux (systemd):**
 ```bash
 # Manage the service
 systemctl --user status strawd
@@ -133,6 +156,14 @@ systemctl --user restart strawd
 # View logs via journald
 journalctl --user -u strawd -f
 ```
+
+**macOS / Windows:**
+```bash
+# Run the daemon directly (e.g., from a terminal or startup script)
+strawd
+```
+
+On all platforms, you can reload the configuration without restarting the daemon by using the TUI or sending the `TRIGGER_RELOAD` IPC command. On Linux/macOS you can also use `pkill -HUP strawd`.
 
 ### The TUI Client (`straw`)
 
@@ -148,8 +179,8 @@ straw
 ## 🏗 Architecture
 
 - **`strawd`**: The engine. Handles filesystem events and rule evaluation.
-- **`straw`**: The interface. A Bubble Tea TUI that communicates via Unix Domain Sockets.
-- **IPC**: JSON-RPC over sockets for high-performance, low-latency communication.
+- **`straw`**: The interface. A Bubble Tea TUI that communicates with the daemon.
+- **IPC**: JSON-RPC over Unix Domain Sockets for high-performance, low-latency communication (supported on Linux, macOS, and Windows 10+).
 
 ## 🔨 Development
 

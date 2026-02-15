@@ -30,7 +30,7 @@ func TestEngine_Evaluate(t *testing.T) {
 				Extension: ".txt",
 			},
 			Actions: []config.Action{
-				{Type: "move", Target: "/tmp/archive"},
+				{Type: "move", Target: filepath.Join(os.TempDir(), "archive")},
 			},
 		},
 		{

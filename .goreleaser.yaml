@@ -67,15 +67,13 @@ archives:
   - id: binaries
     formats:
       - tar.gz
+      - zip
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
       {{- .Os }}_
       {{- .Arch }}
       {{- with .Arm }}v{{ . }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
     files:
       - README.md
       - LICENSE
@@ -121,13 +119,7 @@ release:
 #       system "#{bin}/straw", "--version"
 #       system "#{bin}/strawd", "--version"
 
-scoops:
-  - repository:
-      owner: raythurman2386
-      name: scoop-bucket
-    homepage: "https://github.com/raythurman2386/straw"
-    description: "File automation system with TUI client and daemon"
-    license: MIT
+
 
 nfpms:
   - id: packages

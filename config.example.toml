@@ -5,7 +5,7 @@
 socket_path = ""
 
 [tui]
-theme = "everforest"  # Options: "default", "everforest", "catppuccin"
+theme = "ravenwood"  # Options: "ravenwood", "everforest", "catppuccin", "nord"
 
 [[watch]]
 path = "~/Downloads"

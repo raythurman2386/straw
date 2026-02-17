@@ -58,6 +58,7 @@ var (
 		"catppuccin": Catppuccin,
 		"everforest": Everforest,
 		"nord":       Nord,
+		"ravenwood":  Ravenwood,
 	}
 
 	// Nord theme
@@ -116,13 +117,32 @@ var (
 		ActionTrash: lipgloss.Color("#e67e80"), // Red
 		ActionShell: lipgloss.Color("#d699b6"), // Purple
 	}
+
+	// Ravenwood - A refined forest theme
+	Ravenwood = Theme{
+		Name:       "Ravenwood",
+		Background: lipgloss.Color("#282e33"),
+		Foreground: lipgloss.Color("#d3c6aa"),
+		Secondary:  lipgloss.Color("#374145"), // Surface
+		Tertiary:   lipgloss.Color("#495156"), // Overlay
+		Accent:     lipgloss.Color("#7fbbb3"), // Blue/Aqua
+		Success:    lipgloss.Color("#7fb38e"), // Green
+		Warning:    lipgloss.Color("#dbbc7f"), // Yellow
+		Error:      lipgloss.Color("#e67e80"), // Red
+		Dim:        lipgloss.Color("#859289"), // Grey
+
+		ActionMove:  lipgloss.Color("#7fbbb3"), // Blue
+		ActionCopy:  lipgloss.Color("#dbbc7f"), // Yellow
+		ActionTrash: lipgloss.Color("#e67e80"), // Red
+		ActionShell: lipgloss.Color("#d699b6"), // Purple
+	}
 )
 
 func GetTheme(name string) Theme {
 	if t, ok := Themes[name]; ok {
 		return t
 	}
-	return Everforest
+	return Ravenwood
 }
 
 // AllThemes returns all available themes
@@ -131,6 +151,7 @@ func AllThemes() []Theme {
 		Everforest,
 		Catppuccin,
 		Nord,
+		Ravenwood,
 	}
 }
 

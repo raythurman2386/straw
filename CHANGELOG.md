@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Themes**: New "Ravenwood" and "Nord" color schemes.
 - **Cross-platform support**: Linux, macOS, and Windows (10 1803+) are now all supported.
 - **Windows trash**: Native Recycle Bin integration via `SHFileOperationW` (shell32.dll).
 - **Windows hidden files**: Detects `FILE_ATTRIBUTE_HIDDEN` in addition to dot-prefix convention.

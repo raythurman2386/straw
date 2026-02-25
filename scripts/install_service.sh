@@ -15,6 +15,13 @@ fi
 
 echo "Found strawd at: $BIN_PATH"
 
+# Check if systemctl is available
+if ! command -v systemctl >/dev/null 2>&1; then
+    echo "Warning: 'systemctl' not found. Skipping automatic service installation."
+    echo "You can still run 'strawd' manually to start the daemon."
+    exit 0
+fi
+
 # Create systemd user directory if it doesn't exist
 mkdir -p "$SYSTEMD_DIR"
 
@@ -24,7 +31,7 @@ echo "Generating $SERVICE_FILE..."
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
 Description=Straw File Automation Daemon
-Documentation=https://github.com/youruser/straw
+Documentation=https://github.com/raythurman2386/straw
 After=network.target
 
 [Service]

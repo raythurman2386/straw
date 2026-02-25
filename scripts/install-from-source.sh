@@ -40,9 +40,14 @@ make build
 echo "Step 3: Installing binaries to /usr/local/bin (requires sudo)..."
 sudo make install
 
-# 4. Install the background service
-echo "Step 4: Installing the background daemon service..."
-"$SCRIPT_DIR/install_service.sh"
+# 4. Install the background service (Linux only)
+if [ "$(uname -s)" = "Linux" ]; then
+    echo "Step 4: Installing the background daemon service..."
+    "$SCRIPT_DIR/install_service.sh"
+else
+    echo "Step 4: Skipping background service installation (not supported on this OS)."
+    echo "You can run 'strawd' manually to start the daemon."
+fi
 
 echo ""
 echo "---------------------------------------------------"

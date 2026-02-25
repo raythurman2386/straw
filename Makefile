@@ -3,6 +3,7 @@
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 GO ?= go
+export CGO_ENABLED ?= 0
 
 # Attempt to find golangci-lint
 LINTER := $(shell which golangci-lint 2> /dev/null || which $(HOME)/go/bin/golangci-lint 2> /dev/null || echo "golangci-lint")

@@ -7,6 +7,17 @@ set -e
 REPO="raythurman2386/straw"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
+# Check for dependencies
+if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    echo "Error: curl or wget is required to run this script."
+    exit 1
+fi
+
+if ! command -v tar >/dev/null 2>&1; then
+    echo "Error: tar is required to extract the binaries."
+    exit 1
+fi
+
 # Detect OS
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)

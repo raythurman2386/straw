@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.4-beta] - 2026-02-25
+
+### Fixed
+- **Installation**: Improved script robustness with dependency checks for `curl`, `wget`, and `tar`.
+- **Portability**: Added OS and `systemctl` checks to installation scripts to prevent failures on non-systemd/non-Linux systems.
+- **Build**: Set `CGO_ENABLED=0` in Makefile to ensure portability and fix build errors in environments without C headers.
+- **Documentation**: Corrected documentation URL in systemd service file.
 
 ### Added
 - **Themes**: New "Ravenwood" and "Nord" color schemes.
@@ -37,5 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Installer**: One-liner install script for downloading pre-built binaries from GitHub releases.
 - **Packaging**: DEB, RPM, APK, and Arch Linux packages via GoReleaser.
 
-[Unreleased]: https://github.com/raythurman2386/straw/compare/v0.1.0-beta...HEAD
+[Unreleased]: https://github.com/raythurman2386/straw/compare/v0.1.4-beta...HEAD
+[0.1.4-beta]: https://github.com/raythurman2386/straw/compare/v0.1.3-beta...v0.1.4-beta
 [0.1.0-beta]: https://github.com/raythurman2386/straw/releases/tag/v0.1.0-beta

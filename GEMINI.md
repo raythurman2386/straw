@@ -7,13 +7,17 @@ Straw is a terminal-based, daemon-backed file automation system built with Go. I
 - **Architecture**: Client-Server model.
     - `strawd`: The background daemon (engine) that watches folders and executes rules.
     - `straw`: The TUI client (interface) built with Bubble Tea for real-time monitoring and management.
+        - **Dashboard**: High-level statistics (processed count, errors, last active).
+        - **Wizards**: Interactive forms built with `huh`.
+        - **Navigation**: Centrally managed keybindings and dynamic footer help via `bubbles/key` and `bubbles/help`.
 - **Communication (IPC)**: JSON-RPC over Unix Domain Sockets (works on all supported platforms including Windows 10+). Default socket path is OS-dependent (e.g., `/tmp/straw.sock` on Linux).
 - **Core Technologies**:
     - **Language**: Go 1.25+
-    - **TUI**: [Bubble Tea](https://github.com/charmbracelet/bubbletea) & [Lip Gloss](https://github.com/charmbracelet/lipgloss)
+    - **TUI**: [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), and [huh](https://github.com/charmbracelet/huh) for forms.
     - **File Watching**: [fsnotify](https://github.com/fsnotify/fsnotify)
     - **CLI**: [Cobra](https://github.com/spf13/cobra)
     - **Configuration**: TOML ([go-toml/v2](https://github.com/pelletier/go-toml/v2))
+    - **Logging**: [log](https://github.com/charmbracelet/log) as an `slog` handler.
 
 ## Project Structure
 

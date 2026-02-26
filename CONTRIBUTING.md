@@ -35,6 +35,7 @@ Straw is written in Go and runs on Linux, macOS, and Windows. You'll need Go 1.2
 2. Install dependencies: `go mod download`
 3. Build the project: `make build`
 4. Run tests: `make test`
+5. Run linting: `make check`
 
 ### Cross-Platform Notes
 

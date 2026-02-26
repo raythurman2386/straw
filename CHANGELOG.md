@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-beta] - 2026-02-25
+
+### Added
+- **Charm Ecosystem Integration**: Complete refactor to use `huh.Form` for all interactive wizards and settings.
+- **Structured Logging**: Integrated `github.com/charmbracelet/log` as the backend for all `slog` calls, providing beautiful, color-coded, and structured terminal output.
+- **Activity Dashboard**: Real-time statistics at the top of the Activity tab (Processed files, Error count, Last activity timestamp).
+- **Navigation Best Practices**: Replaced manual key handling with `bubbles/key` and `bubbles/help` for automatic, context-aware help menus in the footer.
+- **Active Tab Highlighting**: The footer now clearly indicates the currently active tab with inverted colors and accents.
+
+### Improved
+- **TUI Performance**: Pre-computed common `lipgloss` styles to reduce memory allocations during the render loop.
+- **Header Layout**: Simplified and centered header for a more professional "always-on" status display.
+- **Theming System**: Implemented dynamic `huh` theme mapping so all forms perfectly match the selected project theme (Everforest, Ravenwood, etc.).
+
+### Fixed
+- **Rule Wizard**: Fixed a data capture bug where rule names could be lost on submission.
+- **Wizard Navigation**: Added `Esc` key support to safely cancel the rule creation wizard at any step.
+- **Settings Persistence**: Resolved an issue where theme selection forms would disappear or fail to reload after a selection.
+
 ## [0.1.4-beta] - 2026-02-25
 
 ### Fixed

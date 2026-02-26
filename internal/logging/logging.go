@@ -43,7 +43,7 @@ func Setup(level slog.Level, logFilePath string, verbose bool) error {
 	l := log.New(multiWriter)
 
 	// If we're writing to a file, we might want to disable colors for that output
-	// if the TUI's Log tab doesn't handle them. 
+	// if the TUI's Log tab doesn't handle them.
 	// However, charmbracelet/log handles it for the whole logger.
 	// For now, let's just make it look good but structured.
 	l.SetStyles(log.DefaultStyles())

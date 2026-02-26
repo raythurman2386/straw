@@ -7,8 +7,8 @@ import (
 	"straw/internal/config"
 	"straw/internal/tui"
 
-	"github.com/charmbracelet/huh"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 )
 
 type wizardModel struct {

@@ -511,13 +511,6 @@ func (m model) View() string {
 	))
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func (m model) renderActivity(style lipgloss.Style) string {
 	// Dashboard
 	statsStyle := lipgloss.NewStyle().
@@ -548,7 +541,7 @@ func (m model) renderActivity(style lipgloss.Style) string {
 	// We need to reduce the height of the viewport area when dashboard is shown
 	logHeight := style.GetHeight() - lipgloss.Height(dashboard) - 1
 	m.viewport.Height = logHeight
-	
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		dashboard,
 		m.viewport.View(),

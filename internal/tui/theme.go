@@ -36,12 +36,12 @@ type Styles struct {
 	TabInactive  lipgloss.Style
 
 	// List Styles
-	ListTitle    lipgloss.Style
-	ListItem     lipgloss.Style
-	ListSelected lipgloss.Style
-	ListDim      lipgloss.Style
-	ListDesc     lipgloss.Style
-	ListMeta     lipgloss.Style
+	ListTitle      lipgloss.Style
+	ListItem       lipgloss.Style
+	ListSelected   lipgloss.Style
+	ListDim        lipgloss.Style
+	ListDesc       lipgloss.Style
+	ListMeta       lipgloss.Style
 	SelectedAccent lipgloss.Style
 
 	// Log Styles
@@ -162,21 +162,25 @@ func AllThemes() []Theme {
 }
 
 func GetStyles(t Theme) Styles {
+	// Base styles for reuse
+	baseBorder := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), false, false, true, false).
+		BorderForeground(t.Tertiary)
+
+	basePadding := lipgloss.NewStyle().Padding(0, 1)
+
 	return Styles{
 		App: lipgloss.NewStyle().
 			Padding(1, 2),
 
-		Header: lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, true, false).
-			BorderForeground(t.Tertiary).
+		Header: baseBorder.
 			Padding(0, 0, 1, 0).
 			MarginBottom(1),
 
-		HeaderTitle: lipgloss.NewStyle().
+		HeaderTitle: basePadding.
 			Foreground(t.Background).
 			Background(t.Accent).
 			Bold(true).
-			Padding(0, 1).
 			MarginRight(1),
 
 		HeaderStatus: lipgloss.NewStyle().
@@ -186,16 +190,14 @@ func GetStyles(t Theme) Styles {
 		Tabs: lipgloss.NewStyle().
 			MarginLeft(2),
 
-		TabActive: lipgloss.NewStyle().
+		TabActive: basePadding.
 			Foreground(t.Accent).
 			Border(lipgloss.NormalBorder(), false, false, true, false).
 			BorderForeground(t.Accent).
-			Padding(0, 1).
 			Bold(true),
 
-		TabInactive: lipgloss.NewStyle().
-			Foreground(t.Dim).
-			Padding(0, 1),
+		TabInactive: basePadding.
+			Foreground(t.Dim),
 
 		// List
 		ListTitle: lipgloss.NewStyle().
@@ -297,20 +299,20 @@ func GetHuhTheme(t Theme) *huh.Theme {
 	base.Focused.Title = base.Focused.Title.Foreground(t.Accent).Bold(true)
 	base.Focused.Description = base.Focused.Description.Foreground(t.Dim)
 	base.Focused.Base = base.Focused.Base.BorderForeground(t.Tertiary)
-	
+
 	base.Focused.Option = base.Focused.Option.Foreground(t.Foreground)
 	base.Focused.SelectedOption = base.Focused.SelectedOption.Foreground(t.Accent).Bold(true)
-	
+
 	base.Focused.TextInput.Prompt = base.Focused.TextInput.Prompt.Foreground(t.Accent)
 	base.Focused.TextInput.Text = base.Focused.TextInput.Text.Foreground(t.Foreground)
-	
+
 	base.Focused.SelectSelector = base.Focused.SelectSelector.Foreground(t.Accent)
-	
+
 	base.Focused.NoteTitle = base.Focused.NoteTitle.Foreground(t.Accent).Bold(true)
 	base.Focused.Base = base.Focused.Base.Foreground(t.Foreground)
 
 	base.Blurred.Title = base.Blurred.Title.Foreground(t.Dim)
 	base.Blurred.Description = base.Blurred.Description.Foreground(t.Dim)
-	
+
 	return base
 }

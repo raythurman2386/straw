@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1-beta] - 2026-02-26
+
+### Added
+- **Rule Deletion**: Users can now delete rules directly from the TUI by pressing `d` in the Rules list.
+- **Daemon Resilience**: The daemon now skips invalid rules during configuration load instead of crashing.
+- **Rule Validation**: Added robust server-side validation for rule creation and updates to prevent persisting malformed rules.
+- **TUI Visual Feedback**: Visually flag broken rules in the Rules list with a warning icon and error message.
+
+### Fixed
+- **Concurrency**: Resolved a potential data race in `strawd` during configuration reloads.
+
 ## [0.2.0-beta] - 2026-02-25
 
 ### Added

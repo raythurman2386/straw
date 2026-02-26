@@ -7,36 +7,27 @@ import (
 	"straw/internal/config"
 	"straw/internal/tui"
 
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/huh"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-)
-
-type wizardStep int
-
-const (
-	stepName wizardStep = iota
-	stepMatch
-	stepMinAge
-	stepMaxAge
-	stepActionType
-	stepActionTarget
-	stepConfirm
 )
 
 type wizardModel struct {
-	step         wizardStep
+	form         *huh.Form
 	originalName string // If editing, stores the name before any changes
-	nameInput    textinput.Model
-	matchInput   textinput.Model
-	minAgeInput  textinput.Model
-	maxAgeInput  textinput.Model
-	targetInput  textinput.Model
-	actionType   string // move, copy, trash, shell
 	styles       tui.Styles
 	theme        tui.Theme
 	width        int
 	height       int
+
+	// Rule data captured by the form
+	name       string
+	match      string
+	minAge     string
+	maxAge     string
+	actionType string
+	target     string
+
+	targetInput *huh.Input
 }
 
 type wizardFinishedMsg struct {
@@ -47,63 +38,117 @@ type wizardFinishedMsg struct {
 type wizardCancelMsg struct{}
 
 func newWizardModel(styles tui.Styles, theme tui.Theme, ruleToEdit *config.Rule) wizardModel {
-	ni := textinput.New()
-	ni.Placeholder = "Enter rule name (e.g. Clean PDFs)"
-
-	mi := textinput.New()
-	mi.Placeholder = "Enter extension (e.g. .pdf) or glob (e.g. *.txt)"
-
-	minAi := textinput.New()
-	minAi.Placeholder = "Min age in days (e.g. 7) - leave empty to skip"
-
-	maxAi := textinput.New()
-	maxAi.Placeholder = "Max age in days (e.g. 30) - leave empty to skip"
-
-	ti := textinput.New()
-	ti.Placeholder = "Enter destination directory path"
-
-	actionType := "move"
-	originalName := ""
+	m := wizardModel{
+		originalName: "",
+		styles:       styles,
+		theme:        theme,
+		actionType:   "move",
+	}
 
 	if ruleToEdit != nil {
-		originalName = ruleToEdit.Name
-		ni.SetValue(ruleToEdit.Name)
+		m.originalName = ruleToEdit.Name
+		m.name = ruleToEdit.Name
 
 		if ruleToEdit.Match.Extension != "" {
-			mi.SetValue(ruleToEdit.Match.Extension)
+			m.match = ruleToEdit.Match.Extension
 		} else if ruleToEdit.Match.Regex != "" {
-			mi.SetValue(ruleToEdit.Match.Regex)
+			m.match = ruleToEdit.Match.Regex
 		} else {
-			mi.SetValue(ruleToEdit.Match.Glob)
+			m.match = ruleToEdit.Match.Glob
 		}
 
 		if ruleToEdit.Match.MinAgeDays > 0 {
-			minAi.SetValue(fmt.Sprintf("%d", ruleToEdit.Match.MinAgeDays))
+			m.minAge = fmt.Sprintf("%d", ruleToEdit.Match.MinAgeDays)
 		}
 		if ruleToEdit.Match.MaxAgeDays > 0 {
-			maxAi.SetValue(fmt.Sprintf("%d", ruleToEdit.Match.MaxAgeDays))
+			m.maxAge = fmt.Sprintf("%d", ruleToEdit.Match.MaxAgeDays)
 		}
 
 		if len(ruleToEdit.Actions) > 0 {
-			actionType = ruleToEdit.Actions[0].Type
-			ti.SetValue(ruleToEdit.Actions[0].Target)
+			m.actionType = ruleToEdit.Actions[0].Type
+			m.target = ruleToEdit.Actions[0].Target
 		}
 	}
 
-	ni.Focus()
+	m.targetInput = huh.NewInput().
+		Key("target").
+		Title("6. Enter destination or command:").
+		Value(&m.target)
 
-	return wizardModel{
-		step:         stepName,
-		originalName: originalName,
-		nameInput:    ni,
-		matchInput:   mi,
-		minAgeInput:  minAi,
-		maxAgeInput:  maxAi,
-		targetInput:  ti,
-		actionType:   actionType,
-		styles:       styles,
-		theme:        theme,
-	}
+	m.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Key("name").
+				Title("1. What should this rule be called?").
+				Placeholder("e.g. Clean PDFs").
+				Value(&m.name).
+				Validate(func(str string) error {
+					if strings.TrimSpace(str) == "" {
+						return fmt.Errorf("name cannot be empty")
+					}
+					return nil
+				}),
+			huh.NewInput().
+				Key("match").
+				Title("2. What files should it match?").
+				Placeholder("e.g. .pdf or *.txt").
+				Description("Enter an extension like '.pdf' or a glob like 'data_*.csv'").
+				Value(&m.match).
+				Validate(func(str string) error {
+					if strings.TrimSpace(str) == "" {
+						return fmt.Errorf("match pattern cannot be empty")
+					}
+					return nil
+				}),
+			huh.NewInput().
+				Key("minAge").
+				Title("3. Minimum Age (days)?").
+				Placeholder("e.g. 7").
+				Description("Leave blank for no minimum age").
+				Value(&m.minAge),
+			huh.NewInput().
+				Key("maxAge").
+				Title("4. Maximum Age (days)?").
+				Placeholder("e.g. 30").
+				Description("Leave blank for no maximum age").
+				Value(&m.maxAge),
+		),
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Key("actionType").
+				Title("5. Select an Action:").
+				Options(
+					huh.NewOption("MOVE", "move"),
+					huh.NewOption("COPY", "copy"),
+					huh.NewOption("TRASH", "trash"),
+					huh.NewOption("SHELL", "shell"),
+				).
+				Value(&m.actionType),
+		),
+		huh.NewGroup(m.targetInput).WithHideFunc(func() bool { return m.actionType == "trash" }),
+		huh.NewGroup(
+			huh.NewNote().
+				Title("7. Confirm and Save?").
+				DescriptionFunc(func() string {
+					targetStr := m.target
+					if m.actionType == "trash" {
+						targetStr = "System Trash"
+					}
+					return fmt.Sprintf("Name: %s\nMatch: %s\nAge: %s to %s days\nAction: %s -> %s",
+						m.name, m.match, m.minAge, m.maxAge, strings.ToUpper(m.actionType), targetStr)
+				}, &m.actionType),
+			huh.NewConfirm().
+				Title("Ready to save?").
+				Affirmative("Yes, save it!").
+				Negative("No, go back"),
+		),
+	).WithTheme(tui.GetHuhTheme(theme))
+
+	return m
+}
+
+func (m wizardModel) Init() tea.Cmd {
+	return m.form.Init()
 }
 
 func (m wizardModel) Update(msg tea.Msg) (wizardModel, tea.Cmd) {
@@ -113,119 +158,67 @@ func (m wizardModel) Update(msg tea.Msg) (wizardModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.nameInput.Width = m.width - 4
-		m.matchInput.Width = m.width - 4
-		m.minAgeInput.Width = m.width - 4
-		m.maxAgeInput.Width = m.width - 4
-		m.targetInput.Width = m.width - 4
-
+		m.form = m.form.WithWidth(m.width)
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
-			return m.nextStep()
-		case "esc":
+		if msg.String() == "esc" {
 			return m, func() tea.Msg { return wizardCancelMsg{} }
-		case "m":
-			if m.step == stepActionType {
-				m.actionType = "move"
-				return m.nextStep()
-			}
-		case "c":
-			if m.step == stepActionType {
-				m.actionType = "copy"
-				return m.nextStep()
-			}
-		case "t":
-			if m.step == stepActionType {
-				m.actionType = "trash"
-				return m.nextStep()
-			}
-		case "s":
-			if m.step == stepActionType {
-				m.actionType = "shell"
-				return m.nextStep()
-			}
 		}
 	}
 
-	switch m.step {
-	case stepName:
-		m.nameInput, cmd = m.nameInput.Update(msg)
-	case stepMatch:
-		m.matchInput, cmd = m.matchInput.Update(msg)
-	case stepMinAge:
-		m.minAgeInput, cmd = m.minAgeInput.Update(msg)
-	case stepMaxAge:
-		m.maxAgeInput, cmd = m.maxAgeInput.Update(msg)
-	case stepActionTarget:
-		m.targetInput, cmd = m.targetInput.Update(msg)
-	}
-
-	return m, cmd
-}
-
-func (m wizardModel) nextStep() (wizardModel, tea.Cmd) {
-	switch m.step {
-	case stepName:
-		if m.nameInput.Value() == "" {
-			return m, nil
-		}
-		m.step = stepMatch
-		m.matchInput.Focus()
-	case stepMatch:
-		if m.matchInput.Value() == "" {
-			return m, nil
-		}
-		m.step = stepMinAge
-		m.minAgeInput.Focus()
-	case stepMinAge:
-		m.step = stepMaxAge
-		m.maxAgeInput.Focus()
-	case stepMaxAge:
-		m.step = stepActionType
-	case stepActionType:
-		if m.actionType == "trash" {
-			m.step = stepConfirm
+	// Update the target input's title/description based on actionType
+	if m.actionType != "trash" {
+		if m.actionType == "shell" {
+			m.targetInput.Title("6. Enter command to run:")
+			m.targetInput.Description("Use $FILE for the file path")
 		} else {
-			m.step = stepActionTarget
-			if m.actionType == "shell" {
-				m.targetInput.Placeholder = "Enter command (use $FILE for path)"
-			} else {
-				m.targetInput.Placeholder = "Enter destination directory path"
-			}
-			m.targetInput.Focus()
+			m.targetInput.Title("6. Enter destination path:")
+			m.targetInput.Description("The directory to move/copy files to")
 		}
-	case stepActionTarget:
-		if m.targetInput.Value() == "" {
-			return m, nil
-		}
-		m.step = stepConfirm
-	case stepConfirm:
+	}
+
+	form, cmd := m.form.Update(msg)
+	if f, ok := form.(*huh.Form); ok {
+		m.form = f
+	}
+
+	if m.form.State == huh.StateCompleted {
+		// Explicitly retrieve values from the form state to ensure they are captured
+		name := m.form.GetString("name")
+		match := m.form.GetString("match")
+		minAge := m.form.GetString("minAge")
+		maxAge := m.form.GetString("maxAge")
+		actionType := m.form.GetString("actionType")
+		target := m.form.GetString("target")
+
 		rule := &config.Rule{
-			Name:    m.nameInput.Value(),
+			Name:    name,
 			Enabled: true,
 			Actions: []config.Action{
-				{Type: m.actionType, Target: m.targetInput.Value()},
+				{Type: actionType, Target: target},
 			},
 		}
 
-		matchVal := m.matchInput.Value()
-		if strings.HasPrefix(matchVal, ".") {
-			rule.Match.Extension = matchVal
+		if strings.HasPrefix(match, ".") {
+			rule.Match.Extension = match
 		} else {
-			rule.Match.Glob = matchVal
+			rule.Match.Glob = match
 		}
 
-		if m.minAgeInput.Value() != "" {
-			_, _ = fmt.Sscanf(m.minAgeInput.Value(), "%d", &rule.Match.MinAgeDays)
+		if minAge != "" {
+			_, _ = fmt.Sscanf(minAge, "%d", &rule.Match.MinAgeDays)
 		}
-		if m.maxAgeInput.Value() != "" {
-			_, _ = fmt.Sscanf(m.maxAgeInput.Value(), "%d", &rule.Match.MaxAgeDays)
+		if maxAge != "" {
+			_, _ = fmt.Sscanf(maxAge, "%d", &rule.Match.MaxAgeDays)
 		}
 
 		return m, func() tea.Msg { return wizardFinishedMsg{rule: rule, originalName: m.originalName} }
 	}
-	return m, nil
+
+	if m.form.State == huh.StateAborted {
+		return m, func() tea.Msg { return wizardCancelMsg{} }
+	}
+
+	return m, cmd
 }
 
 func (m wizardModel) View() string {
@@ -238,86 +231,7 @@ func (m wizardModel) View() string {
 	title := m.styles.ListTitle.Render(titleText)
 	s.WriteString(title + "\n\n")
 
-	successStyle := m.styles.ListSelected.Border(lipgloss.HiddenBorder())
-
-	switch m.step {
-	case stepName:
-		s.WriteString("1. What should this rule be called?\n")
-		s.WriteString(m.nameInput.View())
-	case stepMatch:
-		s.WriteString(fmt.Sprintf("Rule: %s\n\n", successStyle.Render(m.nameInput.Value())))
-		s.WriteString("2. What files should it match?\n")
-		s.WriteString(m.styles.LogMessage.Render("Enter an extension like '.pdf' or a glob like 'data_*.csv'"))
-		s.WriteString("\n" + m.matchInput.View())
-	case stepMinAge:
-		s.WriteString(fmt.Sprintf("Rule: %s\n", successStyle.Render(m.nameInput.Value())))
-		s.WriteString(fmt.Sprintf("Match: %s\n\n", successStyle.Render(m.matchInput.Value())))
-		s.WriteString("3. Minimum Age (days)?\n")
-		s.WriteString(m.styles.LogMessage.Render("Leave blank for no minimum age"))
-		s.WriteString("\n" + m.minAgeInput.View())
-	case stepMaxAge:
-		s.WriteString(fmt.Sprintf("Rule: %s\n", successStyle.Render(m.nameInput.Value())))
-		s.WriteString(fmt.Sprintf("Match: %s\n", successStyle.Render(m.matchInput.Value())))
-		s.WriteString(fmt.Sprintf("Min Age: %s days\n\n", successStyle.Render(m.minAgeInput.Value())))
-		s.WriteString("4. Maximum Age (days)?\n")
-		s.WriteString(m.styles.LogMessage.Render("Leave blank for no maximum age"))
-		s.WriteString("\n" + m.maxAgeInput.View())
-	case stepActionType:
-		s.WriteString(fmt.Sprintf("Rule: %s\n", successStyle.Render(m.nameInput.Value())))
-		s.WriteString(fmt.Sprintf("Match: %s\n", successStyle.Render(m.matchInput.Value())))
-		s.WriteString(fmt.Sprintf("Age: %s to %s days\n\n", successStyle.Render(m.minAgeInput.Value()), successStyle.Render(m.maxAgeInput.Value())))
-		s.WriteString("5. Select an Action:\n\n")
-
-		s.WriteString(m.renderActionOption("move", "m"))
-		s.WriteString(m.renderActionOption("copy", "c"))
-		s.WriteString(m.renderActionOption("trash", "t"))
-		s.WriteString(m.renderActionOption("shell", "s"))
-
-		s.WriteString("\n" + m.styles.LogMessage.Render("Press the letter to select and continue"))
-	case stepActionTarget:
-		s.WriteString(fmt.Sprintf("Rule: %s\n", successStyle.Render(m.nameInput.Value())))
-		s.WriteString(fmt.Sprintf("Match: %s\n", successStyle.Render(m.matchInput.Value())))
-
-		actionColor := m.theme.ActionColor(m.actionType)
-		actionStr := lipgloss.NewStyle().Foreground(actionColor).Bold(true).Render(strings.ToUpper(m.actionType))
-		s.WriteString(fmt.Sprintf("Action: %s\n\n", actionStr))
-
-		if m.actionType == "shell" {
-			s.WriteString("6. Enter command to run:\n")
-		} else {
-			s.WriteString("6. Enter destination path:\n")
-		}
-		s.WriteString(m.targetInput.View())
-	case stepConfirm:
-		s.WriteString("7. Confirm and Save?\n\n")
-		s.WriteString(fmt.Sprintf(" Name:    %s\n", successStyle.Render(m.nameInput.Value())))
-		s.WriteString(fmt.Sprintf(" Match:   %s\n", successStyle.Render(m.matchInput.Value())))
-		s.WriteString(fmt.Sprintf(" Age:    %s to %s days\n", successStyle.Render(m.minAgeInput.Value()), successStyle.Render(m.maxAgeInput.Value())))
-
-		actionColor := m.theme.ActionColor(m.actionType)
-		actionStr := lipgloss.NewStyle().Foreground(actionColor).Bold(true).Render(strings.ToUpper(m.actionType))
-		targetStr := m.targetInput.Value()
-		if m.actionType == "trash" {
-			targetStr = "System Trash"
-		}
-		s.WriteString(fmt.Sprintf(" Action:  %s -> %s\n", actionStr, targetStr))
-		s.WriteString("\nPress ENTER to Save or ESC to Cancel")
-	}
-
-	s.WriteString("\n\n" + m.styles.Desc.Render("ENTER: Next • ESC: Cancel"))
+	s.WriteString(m.form.View())
 
 	return s.String()
-}
-
-func (m wizardModel) renderActionOption(action, key string) string {
-	color := m.theme.ActionColor(action)
-	style := lipgloss.NewStyle().Foreground(color)
-
-	if m.actionType == action {
-		style = style.Bold(true).Underline(true)
-		bullet := lipgloss.NewStyle().Foreground(m.theme.Success).Render("●")
-		return fmt.Sprintf(" %s [%s] %s (Selected)\n", bullet, m.styles.Key.Render(key), style.Render(strings.ToUpper(action)))
-	}
-
-	return fmt.Sprintf(" ○ [%s] %s\n", m.styles.Key.Render(key), style.Render(strings.ToUpper(action)))
 }

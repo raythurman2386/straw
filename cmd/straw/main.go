@@ -59,6 +59,11 @@ type model struct {
 	width           int
 	height          int
 	logFilePath     string
+
+	// Activity Stats
+	statsProcessed int
+	statsErrors    int
+	lastActivity   time.Time
 }
 
 func initialModel(socketPath string, configPath string, cfg *config.Config, logFilePath string) model {
@@ -217,13 +222,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "3":
 				m.activeTab = tabCreate
 				m.wizard = newWizardModel(m.styles, m.theme, nil)
-				return m, nil
+				return m, m.wizard.Init()
 			case "4":
 				m.activeTab = tabLogFile
 				return m, readLogFileCmd(m.logFilePath)
 			case "5":
 				m.activeTab = tabSettings
-				return m, nil
+				return m, m.settings.Init()
 			case "r":
 				if m.connected {
 					m.addSystemLog("Triggering daemon reload...", true)
@@ -235,7 +240,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					ruleItem := m.rulesList.SelectedItem().(RuleItem)
 					m.activeTab = tabCreate
 					m.wizard = newWizardModel(m.styles, m.theme, &ruleItem.rule)
-					return m, nil
+					return m, m.wizard.Init()
 				}
 			}
 		} else {
@@ -274,14 +279,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update wizard styles
 		m.wizard.styles = m.styles
 		m.wizard.theme = m.theme
+		m.wizard.form = m.wizard.form.WithTheme(tui.GetHuhTheme(m.theme))
 
 		// Update settings styles
 		m.settings.styles = m.styles
 		m.settings.theme = m.theme
-		// Re-create settings list delegate to pick up new styles
-		sd := settingsDelegate{styles: m.styles, theme: m.theme}
-		m.settings.list.SetDelegate(sd)
-		m.settings.list.Styles.Title = m.styles.ListTitle
+		m.settings.form = m.settings.form.WithTheme(tui.GetHuhTheme(m.theme))
 
 		m.addSystemLog(fmt.Sprintf("Theme updated to %s", m.config.TUI.Theme), true)
 
@@ -383,6 +386,12 @@ func (m *model) handleNotification(payloadBytes []byte) {
 		return
 	}
 
+	m.statsProcessed++
+	m.lastActivity = time.Now()
+	if payload.Status == "error" {
+		m.statsErrors++
+	}
+
 	timestamp := m.styles.LogTime.Render(time.Now().Format("15:04:05"))
 
 	actionColor := m.theme.ActionColor(payload.Action)
@@ -447,49 +456,22 @@ func (m model) View() string {
 	// 1. Header
 	title := m.styles.HeaderTitle.Render("STRAW")
 
+	statusColor := m.theme.Error
 	statusText := "OFFLINE"
 	if m.connected {
+		statusColor = m.theme.Success
 		statusText = "ONLINE"
 	}
-	status := m.styles.HeaderStatus.Render(statusText)
+	status := m.styles.HeaderStatus.Foreground(statusColor).Render(statusText)
 
-	// Tabs
-	tab1Style := m.styles.TabInactive
-	tab2Style := m.styles.TabInactive
-	tab3Style := m.styles.TabInactive
-	tab4Style := m.styles.TabInactive
-	tab5Style := m.styles.TabInactive
-
-	if m.activeTab == tabActivity {
-		tab1Style = m.styles.TabActive
-	} else if m.activeTab == tabRules {
-		tab2Style = m.styles.TabActive
-	} else if m.activeTab == tabCreate {
-		tab3Style = m.styles.TabActive
-	} else if m.activeTab == tabLogFile {
-		tab4Style = m.styles.TabActive
-	} else {
-		tab5Style = m.styles.TabActive
-	}
-
-	tabs := m.styles.Tabs.Render(
-		lipgloss.JoinHorizontal(lipgloss.Bottom,
-			tab1Style.Render("1. Activity"),
-			tab2Style.Render("2. Rules"),
-			tab3Style.Render("3. New Rule"),
-			tab4Style.Render("4. Logs"),
-			tab5Style.Render("5. Settings"),
-		),
-	)
-
-	header := m.styles.Header.Width(m.width - 4).Render(
-		lipgloss.JoinHorizontal(lipgloss.Center, title, status, tabs),
-	)
+	// Justify header: [TITLE STATUS]
+	headerContent := lipgloss.JoinHorizontal(lipgloss.Center, title, status)
+	header := m.styles.Header.Width(m.width - 4).Render(headerContent)
 
 	// 2. Content Container
 	contentStyle := m.styles.LogContainer.
 		Width(m.width - 4).
-		Height(m.height - 9)
+		Height(m.height - 10)
 
 	var content string
 	if m.activeTab == tabRules {
@@ -499,37 +481,87 @@ func (m model) View() string {
 	} else if m.activeTab == tabLogFile {
 		content = contentStyle.Padding(0, 1).Render(m.logFileViewport.View())
 	} else if m.activeTab == tabSettings {
-		content = contentStyle.Padding(0, 1).Render(m.settings.View())
+		content = contentStyle.Padding(1, 2).Render(m.settings.View())
 	} else {
-		content = contentStyle.Padding(0, 1).Render(m.viewport.View())
+		content = m.renderActivity(contentStyle)
 	}
 
 	// 3. Footer
 	keys := []string{
-		m.renderKey("1", "Activity"),
-		m.renderKey("2", "Rules"),
-		m.renderKey("3", "New"),
-		m.renderKey("4", "Logs"),
-		m.renderKey("5", "Settings"),
-		m.renderKey("r", "Reload"),
+		m.renderKey("1", "Activity", m.activeTab == tabActivity),
+		m.renderKey("2", "Rules", m.activeTab == tabRules),
+		m.renderKey("3", "New", m.activeTab == tabCreate),
+		m.renderKey("4", "Logs", m.activeTab == tabLogFile),
+		m.renderKey("5", "Settings", m.activeTab == tabSettings),
+		m.renderKey("r", "Reload", false),
 	}
 
 	if m.activeTab == tabRules {
-		keys = append(keys, m.renderKey("e", "Edit"))
+		keys = append(keys, m.renderKey("e", "Edit", false))
 	}
 
-	keys = append(keys, m.renderKey("q", "Quit"))
+	keys = append(keys, m.renderKey("q", "Quit", false))
 
 	footer := m.styles.Footer.Width(m.width - 4).Render(strings.Join(keys, "  "))
 
-	return lipgloss.JoinVertical(lipgloss.Left,
+	return m.styles.App.Render(lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		content,
 		footer,
+	))
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func (m model) renderActivity(style lipgloss.Style) string {
+	// Dashboard
+	statsStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.Tertiary).
+		Padding(0, 2).
+		MarginBottom(1).
+		Width(style.GetWidth() - 2)
+
+	labelStyle := m.styles.ListDim.Bold(true)
+	valStyle := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true)
+	errStyle := lipgloss.NewStyle().Foreground(m.theme.Error).Bold(true)
+
+	lastActive := "Never"
+	if !m.lastActivity.IsZero() {
+		lastActive = m.lastActivity.Format("15:04:05")
+	}
+
+	dashboard := statsStyle.Render(
+		lipgloss.JoinHorizontal(lipgloss.Center,
+			labelStyle.Render("Processed: "), valStyle.Render(fmt.Sprintf("%d", m.statsProcessed)),
+			labelStyle.Render("  •  Errors: "), errStyle.Render(fmt.Sprintf("%d", m.statsErrors)),
+			labelStyle.Render("  •  Last Active: "), valStyle.Render(lastActive),
+		),
+	)
+
+	// Live Log (Viewport)
+	// We need to reduce the height of the viewport area when dashboard is shown
+	logHeight := style.GetHeight() - lipgloss.Height(dashboard) - 1
+	m.viewport.Height = logHeight
+	
+	return lipgloss.JoinVertical(lipgloss.Left,
+		dashboard,
+		m.viewport.View(),
 	)
 }
 
-func (m model) renderKey(key, desc string) string {
+func (m model) renderKey(key, desc string, active bool) string {
+	if active {
+		return lipgloss.JoinHorizontal(lipgloss.Left,
+			m.styles.Key.Foreground(m.theme.Background).Background(m.theme.Accent).Render(" "+key+" "),
+			m.styles.SelectedAccent.Render(" "+desc+" "),
+		)
+	}
 	return fmt.Sprintf("%s %s", m.styles.Key.Render(key), m.styles.Desc.Render(desc))
 }
 

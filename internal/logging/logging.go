@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/charmbracelet/log"
 )
 
 // Setup initializes the global slog logger.
@@ -37,11 +39,32 @@ func Setup(level slog.Level, logFilePath string, verbose bool) error {
 
 	multiWriter := io.MultiWriter(writers...)
 
-	handler := slog.NewTextHandler(multiWriter, &slog.HandlerOptions{
-		Level: level,
-	})
+	// Use charmbracelet/log as the handler for slog
+	l := log.New(multiWriter)
 
-	logger := slog.New(handler)
+	// If we're writing to a file, we might want to disable colors for that output
+	// if the TUI's Log tab doesn't handle them.
+	// However, charmbracelet/log handles it for the whole logger.
+	// For now, let's just make it look good but structured.
+	l.SetStyles(log.DefaultStyles())
+	l.SetReportTimestamp(true)
+	l.SetTimeFormat("2006-01-02 15:04:05")
+
+	// Map slog.Level to log.Level
+	switch level {
+	case slog.LevelDebug:
+		l.SetLevel(log.DebugLevel)
+	case slog.LevelInfo:
+		l.SetLevel(log.InfoLevel)
+	case slog.LevelWarn:
+		l.SetLevel(log.WarnLevel)
+	case slog.LevelError:
+		l.SetLevel(log.ErrorLevel)
+	default:
+		l.SetLevel(log.InfoLevel)
+	}
+
+	logger := slog.New(l)
 	slog.SetDefault(logger)
 
 	return nil

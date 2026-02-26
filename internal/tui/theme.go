@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
+)
 
 // Theme defines the color palette for the TUI.
 type Theme struct {
@@ -33,10 +36,13 @@ type Styles struct {
 	TabInactive  lipgloss.Style
 
 	// List Styles
-	ListTitle    lipgloss.Style
-	ListItem     lipgloss.Style
-	ListSelected lipgloss.Style
-	ListDim      lipgloss.Style
+	ListTitle      lipgloss.Style
+	ListItem       lipgloss.Style
+	ListSelected   lipgloss.Style
+	ListDim        lipgloss.Style
+	ListDesc       lipgloss.Style
+	ListMeta       lipgloss.Style
+	SelectedAccent lipgloss.Style
 
 	// Log Styles
 	LogContainer lipgloss.Style
@@ -104,13 +110,13 @@ var (
 		Name:       "Everforest",
 		Background: lipgloss.Color("#2d353b"),
 		Foreground: lipgloss.Color("#d3c6aa"),
-		Secondary:  lipgloss.Color("#374247"), // Surface0
-		Tertiary:   lipgloss.Color("#4a555b"), // Surface1
-		Accent:     lipgloss.Color("#7fbbb3"), // Blue
-		Success:    lipgloss.Color("#a7c080"), // Green
-		Warning:    lipgloss.Color("#dbbc7f"), // Yellow
-		Error:      lipgloss.Color("#e67e80"), // Red
-		Dim:        lipgloss.Color("#859289"), // Grey
+		Secondary:  lipgloss.Color("#343f44"),
+		Tertiary:   lipgloss.Color("#3d484d"),
+		Accent:     lipgloss.Color("#a7c080"), // Green accent
+		Success:    lipgloss.Color("#a7c080"),
+		Warning:    lipgloss.Color("#dbbc7f"),
+		Error:      lipgloss.Color("#e67e80"),
+		Dim:        lipgloss.Color("#859289"),
 
 		ActionMove:  lipgloss.Color("#7fbbb3"), // Blue
 		ActionCopy:  lipgloss.Color("#dbbc7f"), // Yellow
@@ -118,20 +124,20 @@ var (
 		ActionShell: lipgloss.Color("#d699b6"), // Purple
 	}
 
-	// Ravenwood - A refined forest theme
+	// Ravenwood - A refined deep forest theme
 	Ravenwood = Theme{
 		Name:       "Ravenwood",
-		Background: lipgloss.Color("#282e33"),
+		Background: lipgloss.Color("#1a1d1e"), // Deeper background
 		Foreground: lipgloss.Color("#d3c6aa"),
-		Secondary:  lipgloss.Color("#374145"), // Surface
-		Tertiary:   lipgloss.Color("#495156"), // Overlay
-		Accent:     lipgloss.Color("#7fbbb3"), // Blue/Aqua
-		Success:    lipgloss.Color("#7fb38e"), // Green
+		Secondary:  lipgloss.Color("#232a2e"), // Slightly lighter
+		Tertiary:   lipgloss.Color("#3d484d"), // Muted border
+		Accent:     lipgloss.Color("#a7c080"), // Sage Green for accent
+		Success:    lipgloss.Color("#a7c080"), // Green
 		Warning:    lipgloss.Color("#dbbc7f"), // Yellow
 		Error:      lipgloss.Color("#e67e80"), // Red
 		Dim:        lipgloss.Color("#859289"), // Grey
 
-		ActionMove:  lipgloss.Color("#7fbbb3"), // Blue
+		ActionMove:  lipgloss.Color("#7fbbb3"), // Blue-Aqua
 		ActionCopy:  lipgloss.Color("#dbbc7f"), // Yellow
 		ActionTrash: lipgloss.Color("#e67e80"), // Red
 		ActionShell: lipgloss.Color("#d699b6"), // Purple
@@ -156,21 +162,25 @@ func AllThemes() []Theme {
 }
 
 func GetStyles(t Theme) Styles {
+	// Base styles for reuse
+	baseBorder := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), false, false, true, false).
+		BorderForeground(t.Tertiary)
+
+	basePadding := lipgloss.NewStyle().Padding(0, 1)
+
 	return Styles{
 		App: lipgloss.NewStyle().
 			Padding(1, 2),
 
-		Header: lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, true, false).
-			BorderForeground(t.Tertiary).
+		Header: baseBorder.
 			Padding(0, 0, 1, 0).
 			MarginBottom(1),
 
-		HeaderTitle: lipgloss.NewStyle().
+		HeaderTitle: basePadding.
 			Foreground(t.Background).
 			Background(t.Accent).
 			Bold(true).
-			Padding(0, 1).
 			MarginRight(1),
 
 		HeaderStatus: lipgloss.NewStyle().
@@ -180,16 +190,14 @@ func GetStyles(t Theme) Styles {
 		Tabs: lipgloss.NewStyle().
 			MarginLeft(2),
 
-		TabActive: lipgloss.NewStyle().
+		TabActive: basePadding.
 			Foreground(t.Accent).
 			Border(lipgloss.NormalBorder(), false, false, true, false).
 			BorderForeground(t.Accent).
-			Padding(0, 1).
 			Bold(true),
 
-		TabInactive: lipgloss.NewStyle().
-			Foreground(t.Dim).
-			Padding(0, 1),
+		TabInactive: basePadding.
+			Foreground(t.Dim),
 
 		// List
 		ListTitle: lipgloss.NewStyle().
@@ -209,6 +217,19 @@ func GetStyles(t Theme) Styles {
 
 		ListDim: lipgloss.NewStyle().
 			Foreground(t.Dim),
+
+		ListDesc: lipgloss.NewStyle().
+			Foreground(t.Dim).
+			PaddingLeft(2),
+
+		ListMeta: lipgloss.NewStyle().
+			Foreground(t.Dim).
+			PaddingLeft(2).
+			Italic(true),
+
+		SelectedAccent: lipgloss.NewStyle().
+			Foreground(t.Accent).
+			Bold(true),
 
 		// Logs
 		LogContainer: lipgloss.NewStyle().
@@ -268,4 +289,30 @@ func (t Theme) ActionColor(action string) lipgloss.Color {
 	default:
 		return t.Foreground
 	}
+}
+
+// GetHuhTheme returns a huh.Theme based on the custom Theme.
+func GetHuhTheme(t Theme) *huh.Theme {
+	base := huh.ThemeCharm()
+
+	// Customize the base theme with our colors
+	base.Focused.Title = base.Focused.Title.Foreground(t.Accent).Bold(true)
+	base.Focused.Description = base.Focused.Description.Foreground(t.Dim)
+	base.Focused.Base = base.Focused.Base.BorderForeground(t.Tertiary)
+
+	base.Focused.Option = base.Focused.Option.Foreground(t.Foreground)
+	base.Focused.SelectedOption = base.Focused.SelectedOption.Foreground(t.Accent).Bold(true)
+
+	base.Focused.TextInput.Prompt = base.Focused.TextInput.Prompt.Foreground(t.Accent)
+	base.Focused.TextInput.Text = base.Focused.TextInput.Text.Foreground(t.Foreground)
+
+	base.Focused.SelectSelector = base.Focused.SelectSelector.Foreground(t.Accent)
+
+	base.Focused.NoteTitle = base.Focused.NoteTitle.Foreground(t.Accent).Bold(true)
+	base.Focused.Base = base.Focused.Base.Foreground(t.Foreground)
+
+	base.Blurred.Title = base.Blurred.Title.Foreground(t.Dim)
+	base.Blurred.Description = base.Blurred.Description.Foreground(t.Dim)
+
+	return base
 }

@@ -70,8 +70,8 @@ func (d RuleDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 	// Styles
 	titleStyle := d.styles.ListItem
-	descStyle := d.styles.ListDim.PaddingLeft(2)
-	metaStyle := d.styles.ListDim.PaddingLeft(2).Italic(true)
+	descStyle := d.styles.ListDesc
+	metaStyle := d.styles.ListMeta
 
 	if index == m.Index() {
 		titleStyle = d.styles.ListSelected
@@ -82,7 +82,7 @@ func (d RuleDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	status := "●"
 	if !rule.rule.Enabled {
 		status = "○"
-		titleStyle.Foreground(d.theme.Dim)
+		titleStyle = titleStyle.Foreground(d.theme.Dim)
 	}
 
 	fmt.Fprintf(w, "%s %s\n%s\n%s",

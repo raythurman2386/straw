@@ -14,9 +14,15 @@ const (
 	MethodGetRules      Method = "GET_RULES"
 	MethodAddRule       Method = "ADD_RULE"
 	MethodUpdateRule    Method = "UPDATE_RULE"
+	MethodDeleteRule    Method = "DELETE_RULE"
 	MethodTriggerReload Method = "TRIGGER_RELOAD"
 	MethodDryRun        Method = "DRY_RUN_REQUEST"
 )
+
+// DeleteRuleParams defines the parameters for deleting a rule.
+type DeleteRuleParams struct {
+	Name string `json:"name"`
+}
 
 // UpdateRuleParams defines the parameters for updating a rule.
 type UpdateRuleParams struct {

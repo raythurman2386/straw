@@ -9,7 +9,8 @@ Straw is a terminal-based, daemon-backed file automation system built with Go. I
     - `straw`: The TUI client (interface) built with Bubble Tea for real-time monitoring and management.
         - **Dashboard**: High-level statistics (processed count, errors, last active).
         - **Wizards**: Interactive forms built with `huh`.
-        - **Navigation**: Centrally managed keybindings and dynamic footer help via `bubbles/key` and `bubbles/help`.
+        - **Rule Management**: Support for creating, editing, and deleting rules (using `e` for edit and `d` for delete).
+        - **Navigation**: Centrally managed keybindings and dynamic footer help.
 - **Communication (IPC)**: JSON-RPC over Unix Domain Sockets (works on all supported platforms including Windows 10+). Default socket path is OS-dependent (e.g., `/tmp/straw.sock` on Linux).
 - **Core Technologies**:
     - **Language**: Go 1.25+
@@ -24,8 +25,8 @@ Straw is a terminal-based, daemon-backed file automation system built with Go. I
 - `cmd/`: Entry points for `straw` (client) and `strawd` (daemon).
 - `internal/`: Core logic packages.
     - `actions/`: Implements file operations (`move`, `copy`, `trash`, `shell`). Platform-specific code uses build tags (`trash_unix.go`, `trash_windows.go`).
-    - `config/`: Configuration loading and validation.
-    - `ipc/`: Socket server/client and JSON-RPC types.
+    - `config/`: Configuration loading and validation. Implements resilient loading that skips invalid rules instead of failing startup.
+    - `ipc/`: Socket server/client and JSON-RPC types. Methods include `ADD_RULE`, `UPDATE_RULE`, and `DELETE_RULE`.
     - `rules/`: The rules evaluation engine. Platform-specific hidden file detection (`hidden_unix.go`, `hidden_windows.go`).
     - `watcher/`: Filesystem event watching wrapper.
     - `tui/`: Shared TUI components and themes.

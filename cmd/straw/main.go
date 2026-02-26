@@ -175,12 +175,25 @@ func addRuleCmd(client *ipc.Client, rule *config.Rule) tea.Cmd {
 }
 
 func updateRuleCmd(client *ipc.Client, originalName string, rule *config.Rule) tea.Cmd {
+	params := ipc.UpdateRuleParams{
+		OriginalName: originalName,
+		Rule:         *rule,
+	}
 	return func() tea.Msg {
-		params := ipc.UpdateRuleParams{
-			OriginalName: originalName,
-			Rule:         *rule,
-		}
 		_, err := client.Call(ipc.MethodUpdateRule, params)
+		if err != nil {
+			return errorMsg(err)
+		}
+		return fetchRulesCmd(client)()
+	}
+}
+
+func deleteRuleCmd(client *ipc.Client, name string) tea.Cmd {
+	params := ipc.DeleteRuleParams{
+		Name: name,
+	}
+	return func() tea.Msg {
+		_, err := client.Call(ipc.MethodDeleteRule, params)
 		if err != nil {
 			return errorMsg(err)
 		}
@@ -241,6 +254,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.activeTab = tabCreate
 					m.wizard = newWizardModel(m.styles, m.theme, &ruleItem.rule)
 					return m, m.wizard.Init()
+				}
+			case "d":
+				if m.activeTab == tabRules && m.rulesList.SelectedItem() != nil {
+					ruleItem := m.rulesList.SelectedItem().(RuleItem)
+					if m.connected {
+						m.addSystemLog(fmt.Sprintf("Deleting rule %q...", ruleItem.rule.Name), true)
+						cmds = append(cmds, deleteRuleCmd(m.client, ruleItem.rule.Name))
+						return m, tea.Batch(cmds...)
+					}
 				}
 			}
 		} else {
@@ -498,6 +520,7 @@ func (m model) View() string {
 
 	if m.activeTab == tabRules {
 		keys = append(keys, m.renderKey("e", "Edit", false))
+		keys = append(keys, m.renderKey("d", "Delete", false))
 	}
 
 	keys = append(keys, m.renderKey("q", "Quit", false))

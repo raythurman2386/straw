@@ -52,6 +52,74 @@ func TestConfig_Validate(t *testing.T) {
 			t.Error("expected error for watch path being a file")
 		}
 	})
+
+	t.Run("Invalid rule", func(t *testing.T) {
+		c := &Config{
+			Watch: []WatchFolder{{Path: tmpDir}},
+			Rules: []Rule{{Name: "", Actions: []Action{}}}, // Missing name and actions
+		}
+		if err := c.Validate(); err == nil {
+			t.Error("expected error for invalid rule")
+		}
+	})
+}
+
+func TestRule_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		rule    Rule
+		wantErr bool
+	}{
+		{"valid rule", Rule{Name: "test", Actions: []Action{{Type: "trash"}}}, false},
+		{"missing name", Rule{Name: "", Actions: []Action{{Type: "trash"}}}, true},
+		{"missing actions", Rule{Name: "test", Actions: []Action{}}, true},
+		{"unknown action", Rule{Name: "test", Actions: []Action{{Type: "foo"}}}, true},
+		{"move missing target", Rule{Name: "test", Actions: []Action{{Type: "move"}}}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.rule.Validate(); (err != nil) != tt.wantErr {
+				t.Errorf("Rule.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestConfig_LoadResiliency(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config_load_resiliency")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "config.toml")
+	content := `
+socket_path = "/tmp/straw.sock"
+[[watch]]
+path = "` + filepath.ToSlash(tmpDir) + `"
+
+[[rules]]
+name = "bad_rule"
+# Missing actions - this is invalid
+
+[[rules]]
+name = "good_rule"
+actions = [{type = "trash"}]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Load should succeed because watch folder is valid, even if rules are bad.
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load should have succeeded with bad rules, but got error: %v", err)
+	}
+
+	if len(cfg.Rules) != 2 {
+		t.Errorf("expected 2 rules to be loaded, got %d", len(cfg.Rules))
+	}
 }
 
 func TestConfig_Save(t *testing.T) {

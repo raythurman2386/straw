@@ -52,6 +52,11 @@ func (e *Engine) Evaluate(event watcher.Event) []config.Action {
 			continue
 		}
 
+		// Skip invalid rules
+		if err := rule.Validate(); err != nil {
+			continue
+		}
+
 		if e.matches(rule.Match, event.Path, info) {
 			// Append actions from this rule
 			// Currently we accumulate all actions from all matching rules.

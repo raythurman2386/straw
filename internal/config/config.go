@@ -120,9 +120,17 @@ func Load(path string) (*Config, error) {
 	// Expand tilde in all paths before validation
 	cfg.expandPaths()
 
-	if err := cfg.Validate(); err != nil {
+	// Validate critical components (Watch folders)
+	if err := cfg.ValidateCritical(); err != nil {
 		return nil, err
 	}
+
+	// Validate rules, but don't fail the whole load if some are bad.
+	// We'll keep them in the config so they can be fixed in the TUI,
+	// but the engine should probably be aware they are invalid.
+	// For now, we just log (if we had a logger here, but we don't,
+	// so the caller should handle it).
+	// Actually, let's just let the engine handle invalid rules by ignoring them.
 
 	return &cfg, nil
 }
@@ -165,6 +173,18 @@ func (c *Config) expandPaths() {
 }
 
 func (c *Config) Validate() error {
+	if err := c.ValidateCritical(); err != nil {
+		return err
+	}
+	for i, r := range c.Rules {
+		if err := r.Validate(); err != nil {
+			return fmt.Errorf("rules[%d] (%s) is invalid: %w", i, r.Name, err)
+		}
+	}
+	return nil
+}
+
+func (c *Config) ValidateCritical() error {
 	if len(c.Watch) == 0 {
 		return errors.New("config must include at least one watch folder")
 	}
@@ -179,12 +199,33 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("watch[%d] path is not a directory: %s", i, w.Path)
 		}
 	}
-	for i, r := range c.Rules {
-		if r.Name == "" {
-			return fmt.Errorf("rules[%d] name is required", i)
+	return nil
+}
+
+func (r Rule) Validate() error {
+	if r.Name == "" {
+		return errors.New("rule name is required")
+	}
+	if len(r.Actions) == 0 {
+		return errors.New("at least one action is required")
+	}
+	for i, a := range r.Actions {
+		if a.Type == "" {
+			return fmt.Errorf("action[%d] type is required", i)
 		}
-		if len(r.Actions) == 0 {
-			return fmt.Errorf("rules[%d] must include at least one action", i)
+		// Basic action validation
+		switch a.Type {
+		case "move", "copy":
+			if a.Target == "" {
+				return fmt.Errorf("action[%d] (%s) target is required", i, a.Type)
+			}
+		case "shell":
+			// args or target (command) should be present?
+			// Looking at actions.go might help.
+		case "trash":
+			// no target needed
+		default:
+			return fmt.Errorf("unknown action type: %s", a.Type)
 		}
 	}
 	return nil

@@ -85,9 +85,18 @@ func (d RuleDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		titleStyle = titleStyle.Foreground(d.theme.Dim)
 	}
 
-	fmt.Fprintf(w, "%s %s\n%s\n%s",
+	// Validation check
+	valErrStr := ""
+	if err := rule.rule.Validate(); err != nil {
+		status = "⚠"
+		titleStyle = titleStyle.Foreground(d.theme.Error)
+		valErrStr = d.styles.ListDesc.Foreground(d.theme.Error).Render(fmt.Sprintf(" (! %v)", err))
+	}
+
+	fmt.Fprintf(w, "%s %s%s\n%s\n%s",
 		titleStyle.Render(status),
 		titleStyle.Render(title),
+		valErrStr,
 		descStyle.Render(desc),
 		metaStyle.Render(fmt.Sprintf("%s  •  %s", matchStr, actionStr)))
 }

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"straw/internal/actions"
 	"straw/internal/config"
@@ -66,6 +67,7 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
+			var cfgMu sync.RWMutex
 
 			// Determine socket path
 			sock := socketPath
@@ -114,7 +116,9 @@ func main() {
 				}
 
 				// Update Local reference for GET_RULES
+				cfgMu.Lock()
 				cfg = newCfg
+				cfgMu.Unlock()
 
 				// Update Rules
 				engine.SetRules(newCfg.Rules)
@@ -131,6 +135,8 @@ func main() {
 			})
 
 			server.Register(ipc.MethodGetRules, func(params json.RawMessage) (interface{}, error) {
+				cfgMu.RLock()
+				defer cfgMu.RUnlock()
 				return cfg.Rules, nil
 			})
 
@@ -138,6 +144,11 @@ func main() {
 				var newRule config.Rule
 				if err := json.Unmarshal(params, &newRule); err != nil {
 					return nil, err
+				}
+
+				// Validate the new rule
+				if err := newRule.Validate(); err != nil {
+					return nil, fmt.Errorf("invalid rule: %w", err)
 				}
 
 				// Persist to config file
@@ -149,6 +160,13 @@ func main() {
 				var fullCfg config.Config
 				if err := toml.Unmarshal(data, &fullCfg); err != nil {
 					return nil, fmt.Errorf("failed to parse config for update: %w", err)
+				}
+
+				// Check for duplicate names
+				for _, r := range fullCfg.Rules {
+					if r.Name == newRule.Name {
+						return nil, fmt.Errorf("rule with name %q already exists", newRule.Name)
+					}
 				}
 
 				fullCfg.Rules = append(fullCfg.Rules, newRule)
@@ -172,6 +190,11 @@ func main() {
 				var args ipc.UpdateRuleParams
 				if err := json.Unmarshal(params, &args); err != nil {
 					return nil, err
+				}
+
+				// Validate the updated rule
+				if err := args.Rule.Validate(); err != nil {
+					return nil, fmt.Errorf("invalid rule: %w", err)
 				}
 
 				// Persist to config file
@@ -211,6 +234,53 @@ func main() {
 				go reloadConfig()
 
 				return "rule updated", nil
+			})
+
+			server.Register(ipc.MethodDeleteRule, func(params json.RawMessage) (interface{}, error) {
+				var args ipc.DeleteRuleParams
+				if err := json.Unmarshal(params, &args); err != nil {
+					return nil, err
+				}
+
+				// Persist to config file
+				data, err := os.ReadFile(configPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read config for update: %w", err)
+				}
+
+				var fullCfg config.Config
+				if err := toml.Unmarshal(data, &fullCfg); err != nil {
+					return nil, fmt.Errorf("failed to parse config for update: %w", err)
+				}
+
+				found := -1
+				for i, r := range fullCfg.Rules {
+					if r.Name == args.Name {
+						found = i
+						break
+					}
+				}
+
+				if found == -1 {
+					return nil, fmt.Errorf("rule not found: %s", args.Name)
+				}
+
+				// Remove the rule
+				fullCfg.Rules = append(fullCfg.Rules[:found], fullCfg.Rules[found+1:]...)
+
+				newData, err := toml.Marshal(fullCfg)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal updated config: %w", err)
+				}
+
+				if err := os.WriteFile(configPath, newData, 0644); err != nil {
+					return nil, fmt.Errorf("failed to write updated config: %w", err)
+				}
+
+				slog.Info("Rule deleted and persisted", "name", args.Name)
+				go reloadConfig()
+
+				return "rule deleted", nil
 			})
 
 			server.Register(ipc.MethodTriggerReload, func(params json.RawMessage) (interface{}, error) {

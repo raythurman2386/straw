@@ -103,4 +103,30 @@ func TestEngine_Evaluate(t *testing.T) {
 			t.Errorf("expected 1 action for old file, got %d", len(actions))
 		}
 	})
+
+	t.Run("Skip invalid rules", func(t *testing.T) {
+		engine.SetRules([]config.Rule{
+			{
+				Name:    "invalid",
+				Enabled: true,
+				Match:   config.Match{},
+				Actions: []config.Action{}, // Invalid: no actions
+			},
+			{
+				Name:    "valid",
+				Enabled: true,
+				Match:   config.Match{},
+				Actions: []config.Action{{Type: "trash"}},
+			},
+		})
+
+		event := watcher.Event{Path: testFile, Type: watcher.Create}
+		actions := engine.Evaluate(event)
+		if len(actions) != 1 {
+			t.Errorf("expected 1 action (skipping invalid one), got %d", len(actions))
+		}
+		if actions[0].Type != "trash" {
+			t.Errorf("expected trash action from valid rule, got %s", actions[0].Type)
+		}
+	})
 }

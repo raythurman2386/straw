@@ -43,6 +43,24 @@ func (e *Executor) move(src, destDir string) error {
 		return err
 	}
 
+	// Check if source file still exists
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Source file is already gone - check if it was already moved to destination
+			filename := filepath.Base(src)
+			destPath := filepath.Join(destDir, filename)
+			if _, err := os.Stat(destPath); err == nil {
+				// File already exists in destination, consider it a success
+				slog.Debug("Source file already moved to destination", "src", src, "dest", destPath)
+				return nil
+			}
+			// Source gone and not in destination - return error
+			return fmt.Errorf("source file does not exist: %s", src)
+		}
+		return err
+	}
+
 	destPath := e.getDestPath(src, destDir)
 
 	// Ensure we aren't moving a file into itself or sensitive areas if we can help it
@@ -50,9 +68,24 @@ func (e *Executor) move(src, destDir string) error {
 		return fmt.Errorf("source and destination are the same: %s", src)
 	}
 
-	// Attempt standard rename
-	err := os.Rename(src, destPath)
+	// If source is a directory, use rename only (no copy fallback for dirs)
+	if srcInfo.IsDir() {
+		if err := os.Rename(src, destPath); err != nil {
+			return fmt.Errorf("failed to rename directory: %w", err)
+		}
+		return nil
+	}
+
+	// Attempt standard rename for files
+	err = os.Rename(src, destPath)
 	if err == nil {
+		return nil
+	}
+
+	// Source may have disappeared between Stat and Rename (race with
+	// another event that already moved it). Check if it's gone.
+	if _, statErr := os.Stat(src); statErr != nil && os.IsNotExist(statErr) {
+		slog.Debug("Source file disappeared before rename completed", "src", src, "dest", destPath)
 		return nil
 	}
 
@@ -63,7 +96,13 @@ func (e *Executor) move(src, destDir string) error {
 		return fmt.Errorf("fallback copy failed: %w", err)
 	}
 
-	return os.Remove(src)
+	// Remove source file after successful copy
+	// Ignore error if file was already removed (e.g., by concurrent processing)
+	if err := os.Remove(src); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove source file after copy: %w", err)
+	}
+
+	return nil
 }
 
 func (e *Executor) copy(src, destDir string) error {

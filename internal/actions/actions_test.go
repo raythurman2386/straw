@@ -90,6 +90,62 @@ func TestExecutor_MoveCrossDevice(t *testing.T) {
 	}
 }
 
+// TestExecutor_MoveSourceAlreadyMoved tests that calling move on a file
+// that was already moved to the destination (e.g. by a duplicate event)
+// succeeds without returning an error.
+func TestExecutor_MoveSourceAlreadyMoved(t *testing.T) {
+	e := NewExecutor()
+	tmpDir, err := os.MkdirTemp("", "move_already_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	src := filepath.Join(tmpDir, "src.txt")
+	if err := os.WriteFile(src, []byte("hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	destDir := filepath.Join(tmpDir, "out")
+
+	// First move should succeed normally
+	err = e.move(src, destDir)
+	if err != nil {
+		t.Fatalf("first move failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(destDir, "src.txt")); os.IsNotExist(err) {
+		t.Fatal("file should exist in destination after first move")
+	}
+
+	// Second move on the same (now missing) source path should not error,
+	// because the file is already at the destination.
+	err = e.move(src, destDir)
+	if err != nil {
+		t.Errorf("second move should succeed (file already at destination), got: %v", err)
+	}
+}
+
+// TestExecutor_MoveSourceGone tests that calling move on a source file
+// that no longer exists and is not at the destination returns an error.
+func TestExecutor_MoveSourceGone(t *testing.T) {
+	e := NewExecutor()
+	tmpDir, err := os.MkdirTemp("", "move_gone_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	src := filepath.Join(tmpDir, "ghost.txt")
+	destDir := filepath.Join(tmpDir, "out")
+
+	// Source never existed — move should return an error
+	err = e.move(src, destDir)
+	if err == nil {
+		t.Error("move should fail when source does not exist and is not at destination")
+	}
+}
+
 func TestExecutor_Shell(t *testing.T) {
 	e := NewExecutor()
 	tmpDir, err := os.MkdirTemp("", "shell_test")

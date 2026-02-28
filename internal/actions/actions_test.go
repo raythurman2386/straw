@@ -127,7 +127,8 @@ func TestExecutor_MoveSourceAlreadyMoved(t *testing.T) {
 }
 
 // TestExecutor_MoveSourceGone tests that calling move on a source file
-// that no longer exists and is not at the destination returns an error.
+// that no longer exists is treated as a no-op success, since a prior
+// event already handled it.
 func TestExecutor_MoveSourceGone(t *testing.T) {
 	e := NewExecutor()
 	tmpDir, err := os.MkdirTemp("", "move_gone_test")
@@ -139,10 +140,10 @@ func TestExecutor_MoveSourceGone(t *testing.T) {
 	src := filepath.Join(tmpDir, "ghost.txt")
 	destDir := filepath.Join(tmpDir, "out")
 
-	// Source never existed — move should return an error
+	// Source never existed — move should treat this as a no-op (already handled)
 	err = e.move(src, destDir)
-	if err == nil {
-		t.Error("move should fail when source does not exist and is not at destination")
+	if err != nil {
+		t.Errorf("move should succeed when source does not exist (already handled), got: %v", err)
 	}
 }
 

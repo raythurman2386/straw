@@ -110,6 +110,14 @@ if [ ! -f "straw" ] || [ ! -f "strawd" ]; then
     exit 1
 fi
 
+# Stop any running strawd instances before installing new binary
+echo "Checking for running strawd instances..."
+if pgrep -x strawd > /dev/null 2>&1; then
+    echo "Stopping existing strawd processes..."
+    pkill -x strawd 2>/dev/null || true
+    sleep 1
+fi
+
 # Install binaries
 if [ -w "$INSTALL_DIR" ]; then
     echo "Installing to $INSTALL_DIR..."
@@ -136,6 +144,13 @@ if [ "$OS" = "linux" ] && command -v systemctl >/dev/null 2>&1; then
     SERVICE_DIR="${HOME}/.config/systemd/user"
     mkdir -p "$SERVICE_DIR"
     
+    # Stop existing service before updating binary
+    if systemctl --user is-active --quiet strawd.service 2>/dev/null; then
+        echo "Stopping existing strawd service..."
+        systemctl --user stop strawd.service
+        sleep 1
+    fi
+    
     cat > "$SERVICE_DIR/strawd.service" << EOF
 [Unit]
 Description=Straw File Automation Daemon
@@ -153,9 +168,15 @@ EOF
     
     systemctl --user daemon-reload
     systemctl --user enable strawd.service
-    systemctl --user start strawd.service
     
-    echo "Started strawd service"
+    # Start or restart the service
+    if systemctl --user is-active --quiet strawd.service 2>/dev/null; then
+        systemctl --user restart strawd.service
+        echo "Restarted strawd service"
+    else
+        systemctl --user start strawd.service
+        echo "Started strawd service"
+    fi
 fi
 
 echo ""

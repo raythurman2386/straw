@@ -13,6 +13,11 @@ build:
 	$(GO) build -o bin/strawd ./cmd/strawd
 
 install:
+	@if pgrep -x strawd > /dev/null 2>&1; then \
+		echo "Stopping existing strawd instances..."; \
+		pkill -x strawd 2>/dev/null || true; \
+		sleep 1; \
+	fi
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 bin/straw $(DESTDIR)$(BINDIR)/
 	install -m 755 bin/strawd $(DESTDIR)$(BINDIR)/

@@ -5,9 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
+
+const debounceInterval = 100 * time.Millisecond
 
 type EventType int
 
@@ -89,18 +92,32 @@ func (w *Watcher) Start() {
 }
 
 func (w *Watcher) loop() {
+	// pending tracks debounced events keyed by file path.
+	// When multiple fsnotify events arrive for the same path within
+	// debounceInterval, only the last event is forwarded.
+	pending := make(map[string]Event)
+	timers := make(map[string]*time.Timer)
+
+	// flush receives paths whose debounce timer has expired,
+	// keeping all map access on the loop goroutine.
+	flush := make(chan string, 100)
+
 	for {
 		select {
 		case event, ok := <-w.fsWatcher.Events:
 			if !ok {
+				// Flush remaining pending events before exiting
+				for path, ev := range pending {
+					w.events <- ev
+					delete(pending, path)
+				}
 				return
 			}
 
-			// Handle new directories
+			// Handle new directories immediately (not debounced)
 			if event.Op&fsnotify.Create == fsnotify.Create {
 				info, err := os.Stat(event.Name)
 				if err == nil && info.IsDir() {
-					// Check if inside a recursive root
 					if w.isRecursive(event.Name) {
 						if err := w.Add(event.Name, true); err != nil {
 							w.errors <- err
@@ -109,9 +126,28 @@ func (w *Watcher) loop() {
 				}
 			}
 
-			// Forward event
-			// We might want to debounce or filter here, but for now just raw events.
-			w.events <- translateEvent(event)
+			// Debounce: coalesce multiple events for the same path.
+			// Each new event resets the timer; only when the timer
+			// expires (no new events for debounceInterval) do we
+			// forward the final event to consumers.
+			translated := translateEvent(event)
+			pending[event.Name] = translated
+
+			if t, exists := timers[event.Name]; exists {
+				t.Reset(debounceInterval)
+			} else {
+				path := event.Name
+				timers[path] = time.AfterFunc(debounceInterval, func() {
+					flush <- path
+				})
+			}
+
+		case path := <-flush:
+			if ev, ok := pending[path]; ok {
+				w.events <- ev
+				delete(pending, path)
+				delete(timers, path)
+			}
 
 		case err, ok := <-w.fsWatcher.Errors:
 			if !ok {
@@ -119,6 +155,10 @@ func (w *Watcher) loop() {
 			}
 			w.errors <- err
 		case <-w.done:
+			// Stop all pending timers on shutdown
+			for _, t := range timers {
+				t.Stop()
+			}
 			return
 		}
 	}

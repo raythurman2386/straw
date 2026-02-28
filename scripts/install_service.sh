@@ -50,9 +50,25 @@ WantedBy=default.target
 EOF
 
 echo "Installing service..."
+
+# Stop existing service before updating
+if systemctl --user is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    echo "Stopping existing strawd service..."
+    systemctl --user stop "$SERVICE_NAME"
+    sleep 1
+fi
+
 systemctl --user daemon-reload
 systemctl --user enable "$SERVICE_NAME"
-systemctl --user restart "$SERVICE_NAME"
+
+# Start or restart the service
+if systemctl --user is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    systemctl --user restart "$SERVICE_NAME"
+    echo "Restarted strawd service"
+else
+    systemctl --user start "$SERVICE_NAME"
+    echo "Started strawd service"
+fi
 
 echo "---------------------------------------------------"
 echo "✅ Straw daemon is now running as a user service!"

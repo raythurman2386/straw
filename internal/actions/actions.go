@@ -43,27 +43,65 @@ func (e *Executor) move(src, destDir string) error {
 		return err
 	}
 
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Source is already gone — a prior event already moved it.
+			slog.Debug("Source file already removed, skipping move", "src", src)
+			return nil
+		}
+		return err
+	}
+
 	destPath := e.getDestPath(src, destDir)
 
-	// Ensure we aren't moving a file into itself or sensitive areas if we can help it
 	if destPath == src {
 		return fmt.Errorf("source and destination are the same: %s", src)
 	}
 
-	// Attempt standard rename
-	err := os.Rename(src, destPath)
-	if err == nil {
+	// Directories can only be renamed, not copied as a fallback.
+	if srcInfo.IsDir() {
+		return e.renameOrSkip(src, destPath)
+	}
+
+	// Attempt standard rename for files.
+	renameErr := e.renameOrSkip(src, destPath)
+	if renameErr == nil {
 		return nil
 	}
 
-	// If rename fails (e.g. cross-device), fallback to copy + delete
-	slog.Debug("Standard rename failed, attempting copy+delete fallback", "src", src, "dest", destPath, "error", err)
+	// If rename fails (e.g. cross-device), fallback to copy + delete.
+	slog.Debug("Standard rename failed, attempting copy+delete fallback", "src", src, "dest", destPath, "renameError", renameErr)
 
 	if err := e.copyToPath(src, destPath); err != nil {
+		slog.Debug("copyToPath failed", "src", src, "dest", destPath, "error", err, "isNotExist", os.IsNotExist(err))
+		if os.IsNotExist(err) {
+			slog.Debug("Source file disappeared during fallback copy", "src", src)
+			return nil
+		}
 		return fmt.Errorf("fallback copy failed: %w", err)
 	}
 
-	return os.Remove(src)
+	// Clean up the source after a successful copy.
+	if err := os.Remove(src); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove source after copy: %w", err)
+	}
+
+	return nil
+}
+
+// renameOrSkip attempts os.Rename. If the source has already been removed
+// (e.g. by a concurrent event), it returns nil instead of an error.
+func (e *Executor) renameOrSkip(src, dest string) error {
+	err := os.Rename(src, dest)
+	if err == nil {
+		return nil
+	}
+	if os.IsNotExist(err) {
+		slog.Debug("Source file disappeared before rename completed", "src", src, "dest", dest)
+		return nil
+	}
+	return err
 }
 
 func (e *Executor) copy(src, destDir string) error {

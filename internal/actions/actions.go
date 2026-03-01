@@ -56,7 +56,8 @@ func (e *Executor) move(src, destDir string) error {
 	destPath := e.getDestPath(src, destDir)
 
 	if destPath == src {
-		return fmt.Errorf("source and destination are the same: %s", src)
+		slog.Debug("Source and destination are the same, no action needed", "path", src)
+		return nil
 	}
 
 	// Directories can only be renamed, not copied as a fallback.
@@ -114,7 +115,8 @@ func (e *Executor) copy(src, destDir string) error {
 
 	destPath := e.getDestPath(src, destDir)
 	if destPath == src {
-		return fmt.Errorf("source and destination are the same: %s", src)
+		slog.Debug("Source and destination are the same, no action needed", "path", src)
+		return nil
 	}
 
 	return e.copyToPath(src, destPath)
@@ -144,6 +146,10 @@ func (e *Executor) copyToPath(src, dest string) error {
 func (e *Executor) getDestPath(src, destDir string) string {
 	filename := filepath.Base(src)
 	destPath := filepath.Join(destDir, filename)
+
+	if filepath.Clean(src) == destPath {
+		return destPath
+	}
 
 	// If destination exists, append timestamp to prevent overwrite
 	if _, err := os.Stat(destPath); err == nil {

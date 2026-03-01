@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"straw/internal/config"
+	"straw/internal/pathutil"
 	"straw/internal/watcher"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -58,12 +59,34 @@ func (e *Engine) Evaluate(event watcher.Event) []config.Action {
 		}
 
 		if e.matches(rule.Match, event.Path, info) {
+			// If the rule's primary move/copy outcome is already satisfied,
+			// skip it to prevent infinite loops and duplicate shell notifications.
+			if e.isRuleSatisfied(rule, event.Path) {
+				continue
+			}
+
 			// Append actions from this rule
 			// Currently we accumulate all actions from all matching rules.
 			actions = append(actions, rule.Actions...)
 		}
 	}
 	return actions
+}
+
+// isRuleSatisfied checks if a file is already in the target directory of the rule's move or copy action.
+func (e *Engine) isRuleSatisfied(rule config.Rule, path string) bool {
+	fileDir := filepath.Clean(filepath.Dir(path))
+
+	for _, action := range rule.Actions {
+		if action.Type == "move" || action.Type == "copy" {
+			target := pathutil.ExpandPath(action.Target)
+			target = filepath.Clean(target)
+			if fileDir == target {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (e *Engine) matches(m config.Match, path string, info os.FileInfo) bool {
